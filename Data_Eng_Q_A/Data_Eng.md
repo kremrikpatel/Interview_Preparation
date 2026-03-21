@@ -6,92 +6,164 @@ Here is a comprehensive bank of **300 interview questions with answers** organ
 BigQuery (Advanced)
 -------------------
 
-**Q1. How does BigQuery's columnar storage architecture affect query performance and cost?**BigQuery stores data in Dremel's columnar format (Capacitor), meaning only queried columns are scanned. This minimizes I/O, dramatically cutting costs (billed per bytes scanned) and improving performance vs. row-based systems. Always SELECT only needed columns and avoid SELECT \*.​
+**Q1. How does BigQuery's columnar storage architecture affect query performance and cost?**
 
-**Q2. Explain the difference between partitioned and clustered tables. When would you use both together?**Partitioning divides a table into segments (by date, integer range, or ingestion time), enabling partition pruning so only relevant segments are scanned. Clustering sorts data within partitions by specified columns (up to 4), further reducing scan size for high-cardinality filter columns. Use both when querying large tables filtered on a date range AND a high-cardinality column like user\_id or region.​
+BigQuery stores data in Dremel's columnar format (Capacitor), meaning only queried columns are scanned. This minimizes I/O, dramatically cutting costs (billed per bytes scanned) and improving performance vs. row-based systems. Always SELECT only needed columns and avoid SELECT \*.​
 
-**Q3. What are BigQuery slots and how do reservations work?**Slots are units of BigQuery computational capacity (CPU, memory, I/O). On-demand pricing uses shared slots; reservations (via BigQuery Editions) guarantee dedicated slots to projects or folders. Use INFORMATION\_SCHEMA.JOBS and ASSIGNMENTS views to monitor slot utilization and right-size reservations for predictable workloads.​
+**Q2. Explain the difference between partitioned and clustered tables. When would you use both together?**
 
-**Q4. How do you handle schema evolution in BigQuery without breaking downstream consumers?**Use NULLABLE mode for new columns and avoid removing or renaming columns. For breaking changes, create a new versioned dataset (e.g., dataset\_v2), use authorized views to abstract schema, and maintain backward-compatible views on top of evolving base tables.​
+Partitioning divides a table into segments (by date, integer range, or ingestion time), enabling partition pruning so only relevant segments are scanned. Clustering sorts data within partitions by specified columns (up to 4), further reducing scan size for high-cardinality filter columns. Use both when querying large tables filtered on a date range AND a high-cardinality column like user\_id or region.​
 
-**Q5. What is BI Engine and when should you use it?**BI Engine is an in-memory analysis service that accelerates SQL queries by caching frequently accessed table data. It's ideal for dashboarding tools like Looker Studio where sub-second latency is needed on repeated queries against relatively stable datasets. It complements but doesn't replace clustering/partitioning.
+**Q3. What are BigQuery slots and how do reservations work?**
 
-**Q6. How do you implement row-level security in BigQuery?**Use row-level access policies via CREATE ROW ACCESS POLICY statements, which filter rows based on a USING expression tied to SESSION\_USER() or group membership. Combine with column-level security via policy tags in Data Catalog for fine-grained PII control.
+Slots are units of BigQuery computational capacity (CPU, memory, I/O). On-demand pricing uses shared slots; reservations (via BigQuery Editions) guarantee dedicated slots to projects or folders. Use INFORMATION\_SCHEMA.JOBS and ASSIGNMENTS views to monitor slot utilization and right-size reservations for predictable workloads.​
 
-**Q7. Explain INFORMATION\_SCHEMA and how you use it for cost governance.**INFORMATION\_SCHEMA.JOBS logs every query's bytes processed, slot milliseconds, user, and duration. You can build a governance dashboard by querying this view to identify expensive queries, heavy users, and optimize or enforce quotas using Custom IAM conditions.
+**Q4. How do you handle schema evolution in BigQuery without breaking downstream consumers?**
 
-**Q8. What is the difference between standard and materialized views in BigQuery?**Standard views are virtual — they re-execute the underlying SQL on every query. Materialized views pre-compute and cache the results, refreshing automatically when base tables change. Use materialized views for aggregations accessed frequently to avoid repeated full-table scans.
+Use NULLABLE mode for new columns and avoid removing or renaming columns. For breaking changes, create a new versioned dataset (e.g., dataset\_v2), use authorized views to abstract schema, and maintain backward-compatible views on top of evolving base tables.​
 
-**Q9. How does BigQuery handle late-arriving data in streaming inserts?**Streaming inserts via the Storage Write API are immediately queryable but not immediately deduplicated. Use insertId for best-effort deduplication within a time window. For guaranteed exactly-once semantics, use the Storage Write API in committed mode or Dataflow's exactly-once streaming.
+**Q5. What is BI Engine and when should you use it?**
 
-**Q10. How do you optimize JOIN performance in BigQuery?**Put the largest table on the left side of the JOIN (BigQuery distributes the right-side table). Use broadcast joins for small dimension tables (<100MB). Pre-filter both sides before joining, and denormalize where appropriate using nested STRUCT and ARRAY types to avoid joins entirely.
+BI Engine is an in-memory analysis service that accelerates SQL queries by caching frequently accessed table data. It's ideal for dashboarding tools like Looker Studio where sub-second latency is needed on repeated queries against relatively stable datasets. It complements but doesn't replace clustering/partitioning.
+
+**Q6. How do you implement row-level security in BigQuery?**
+
+Use row-level access policies via CREATE ROW ACCESS POLICY statements, which filter rows based on a USING expression tied to SESSION\_USER() or group membership. Combine with column-level security via policy tags in Data Catalog for fine-grained PII control.
+
+**Q7. Explain INFORMATION\_SCHEMA and how you use it for cost governance.**
+
+INFORMATION\_SCHEMA.JOBS logs every query's bytes processed, slot milliseconds, user, and duration. You can build a governance dashboard by querying this view to identify expensive queries, heavy users, and optimize or enforce quotas using Custom IAM conditions.
+
+**Q8. What is the difference between standard and materialized views in BigQuery?**
+
+Standard views are virtual — they re-execute the underlying SQL on every query. Materialized views pre-compute and cache the results, refreshing automatically when base tables change. Use materialized views for aggregations accessed frequently to avoid repeated full-table scans.
+
+**Q9. How does BigQuery handle late-arriving data in streaming inserts?**
+
+Streaming inserts via the Storage Write API are immediately queryable but not immediately deduplicated. Use insertId for best-effort deduplication within a time window. For guaranteed exactly-once semantics, use the Storage Write API in committed mode or Dataflow's exactly-once streaming.
+
+**Q10. How do you optimize JOIN performance in BigQuery?**
+
+Put the largest table on the left side of the JOIN (BigQuery distributes the right-side table). Use broadcast joins for small dimension tables (<100MB). Pre-filter both sides before joining, and denormalize where appropriate using nested STRUCT and ARRAY types to avoid joins entirely.
 
 Dataflow (Advanced)
 -------------------
 
-**Q11. Explain the difference between bounded and unbounded PCollections in Apache Beam.**Bounded PCollections represent finite datasets (batch); unbounded represent infinite streams (streaming). Dataflow auto-detects the runner mode but you can force it. The same pipeline code can handle both, which is the power of Beam's unified model.
+**Q11. Explain the difference between bounded and unbounded PCollections in Apache Beam.**
 
-**Q12. What is windowing in Dataflow and what are the window types?**Windowing groups elements of an unbounded stream into finite buckets for aggregation. Types include: Fixed (tumbling) windows (non-overlapping equal-size buckets), Sliding windows (overlapping), Session windows (activity-based, gaps trigger new windows), and Global windows (default, for batch).
+Bounded PCollections represent finite datasets (batch); unbounded represent infinite streams (streaming). Dataflow auto-detects the runner mode but you can force it. The same pipeline code can handle both, which is the power of Beam's unified model.
 
-**Q13. How do you handle late data in a Dataflow streaming pipeline?**Use withAllowedLateness() on your windowing strategy. Elements arriving after the watermark but within the allowed lateness are placed in the correct window. Use accumulation mode (ACCUMULATING vs. DISCARDING) to decide how late firings interact with earlier results.
+**Q12. What is windowing in Dataflow and what are the window types?**
 
-**Q14. What is the difference between Dataflow Shuffle and Streaming Engine?**Dataflow Shuffle offloads shuffle operations (for batch) to Google's backend, reducing worker memory and improving performance/cost. Streaming Engine offloads window state and timers (for streaming) to backend, enabling auto-scaling without memory bottlenecks.
+Windowing groups elements of an unbounded stream into finite buckets for aggregation. Types include: Fixed (tumbling) windows (non-overlapping equal-size buckets), Sliding windows (overlapping), Session windows (activity-based, gaps trigger new windows), and Global windows (default, for batch).
 
-**Q15. How do you implement exactly-once processing in Dataflow?**For streaming, enable --experiments=enable\_exactly\_once\_streaming with the Streaming Engine. This uses a distributed commit protocol to ensure each record is processed exactly once end-to-end, at higher cost than at-least-once. For sinks, use idempotent writes or transactional APIs.
+**Q13. How do you handle late data in a Dataflow streaming pipeline?**
 
-**Q16. Explain Dataflow FlexTemplates vs Classic Templates.**Classic Templates are pre-compiled JAR/Python files with static parameters. FlexTemplates package the pipeline in a Docker container, enabling dynamic parameter types, runtime dependencies, and Python packages not available at compile time. FlexTemplates are preferred for modern deployments.
+Use withAllowedLateness() on your windowing strategy. Elements arriving after the watermark but within the allowed lateness are placed in the correct window. Use accumulation mode (ACCUMULATING vs. DISCARDING) to decide how late firings interact with earlier results.
 
-**Q17. How do you debug a Dataflow pipeline with poor performance?**Check the Dataflow UI for hot keys (data skew), worker CPU/memory in Cloud Monitoring, and stage execution times. Use ParDo fusions and check if bottleneck stages are fused or separated. Profile with --experiments=use\_runner\_v2 and enable detailed logging per worker.
+**Q14. What is the difference between Dataflow Shuffle and Streaming Engine?**
 
-**Q18. What is a SideInput in Apache Beam and when do you use it?**A SideInput provides additional read-only data to a ParDo transform, such as a lookup table or configuration. Unlike joining two PCollections, SideInputs are broadcast to all workers. Use them when one dataset is small enough to hold in memory (e.g., dimension table lookups).
+Dataflow Shuffle offloads shuffle operations (for batch) to Google's backend, reducing worker memory and improving performance/cost. Streaming Engine offloads window state and timers (for streaming) to backend, enabling auto-scaling without memory bottlenecks.
 
-**Q19. How does watermarking work in streaming Dataflow pipelines?**A watermark estimates the current event-time progress. Dataflow tracks the oldest in-flight event timestamp and advances the watermark as data arrives. When the watermark passes a window's end, the window triggers. The accuracy of watermarks depends on source timestamps and withTimestampFn().
+**Q15. How do you implement exactly-once processing in Dataflow?**
 
-**Q20. How do you right-size Dataflow workers for cost efficiency?**Enable Horizontal Autoscaling (--autoscalingAlgorithm=THROUGHPUT\_BASED) and set --maxNumWorkers. Use n1-standard vs n1-highmem based on whether the bottleneck is CPU or memory. For streaming, prefer Streaming Engine to avoid over-provisioning for state storage.
+For streaming, enable --experiments=enable\_exactly\_once\_streaming with the Streaming Engine. This uses a distributed commit protocol to ensure each record is processed exactly once end-to-end, at higher cost than at-least-once. For sinks, use idempotent writes or transactional APIs.
+
+**Q16. Explain Dataflow FlexTemplates vs Classic Templates.**
+
+Classic Templates are pre-compiled JAR/Python files with static parameters. FlexTemplates package the pipeline in a Docker container, enabling dynamic parameter types, runtime dependencies, and Python packages not available at compile time. FlexTemplates are preferred for modern deployments.
+
+**Q17. How do you debug a Dataflow pipeline with poor performance?**
+
+Check the Dataflow UI for hot keys (data skew), worker CPU/memory in Cloud Monitoring, and stage execution times. Use ParDo fusions and check if bottleneck stages are fused or separated. Profile with --experiments=use\_runner\_v2 and enable detailed logging per worker.
+
+**Q18. What is a SideInput in Apache Beam and when do you use it?**
+
+A SideInput provides additional read-only data to a ParDo transform, such as a lookup table or configuration. Unlike joining two PCollections, SideInputs are broadcast to all workers. Use them when one dataset is small enough to hold in memory (e.g., dimension table lookups).
+
+**Q19. How does watermarking work in streaming Dataflow pipelines?**
+
+A watermark estimates the current event-time progress. Dataflow tracks the oldest in-flight event timestamp and advances the watermark as data arrives. When the watermark passes a window's end, the window triggers. The accuracy of watermarks depends on source timestamps and withTimestampFn().
+
+**Q20. How do you right-size Dataflow workers for cost efficiency?**
+
+Enable Horizontal Autoscaling (--autoscalingAlgorithm=THROUGHPUT\_BASED) and set --maxNumWorkers. Use n1-standard vs n1-highmem based on whether the bottleneck is CPU or memory. For streaming, prefer Streaming Engine to avoid over-provisioning for state storage.
 
 Pub/Sub & Event-Driven Architecture
 -----------------------------------
 
-**Q21. What is the difference between Pub/Sub and Pub/Sub Lite?**Pub/Sub is fully managed, globally replicated, and serverless with at-least-once delivery. Pub/Sub Lite is zonal (or regional), cheaper, but requires capacity provisioning (throughput units) and has no global replication. Use Lite for high-throughput, cost-sensitive, single-region pipelines.
+**Q21. What is the difference between Pub/Sub and Pub/Sub Lite?**
 
-**Q22. How do you guarantee message ordering in Pub/Sub?**Enable message ordering on the topic and use an ordering key in the publish request. Subscribers must use enable\_message\_ordering=True. All messages with the same ordering key are delivered in order to a single subscriber, but this limits parallelism for that key.
+Pub/Sub is fully managed, globally replicated, and serverless with at-least-once delivery. Pub/Sub Lite is zonal (or regional), cheaper, but requires capacity provisioning (throughput units) and has no global replication. Use Lite for high-throughput, cost-sensitive, single-region pipelines.
 
-**Q23. Explain the dead-letter queue pattern in Pub/Sub.**Configure a dead-letter topic on the subscription with a max\_delivery\_attempts threshold. Messages that fail processing beyond this limit are forwarded to the dead-letter topic for inspection and replay. This prevents poison-pill messages from blocking pipeline progress.
+**Q22. How do you guarantee message ordering in Pub/Sub?**
 
-**Q24. How do you handle Pub/Sub message deduplication?**Pub/Sub guarantees at-least-once delivery, so deduplication must be done downstream. Use the message\_id (assigned by Pub/Sub) or a custom ordering\_key + timestamp as an idempotency key. Store processed IDs in Bigtable or Memorystore for fast lookup.
+Enable message ordering on the topic and use an ordering key in the publish request. Subscribers must use enable\_message\_ordering=True. All messages with the same ordering key are delivered in order to a single subscriber, but this limits parallelism for that key.
 
-**Q25. What are Pub/Sub snapshots and when are they used?**Snapshots capture the state of a subscription at a point in time, retaining unacknowledged messages. They enable replay: you can seek a subscription back to a snapshot to reprocess messages after a bug fix. Retained for up to 7 days.
+**Q23. Explain the dead-letter queue pattern in Pub/Sub.**
+
+Configure a dead-letter topic on the subscription with a max\_delivery\_attempts threshold. Messages that fail processing beyond this limit are forwarded to the dead-letter topic for inspection and replay. This prevents poison-pill messages from blocking pipeline progress.
+
+**Q24. How do you handle Pub/Sub message deduplication?**
+
+Pub/Sub guarantees at-least-once delivery, so deduplication must be done downstream. Use the message\_id (assigned by Pub/Sub) or a custom ordering\_key + timestamp as an idempotency key. Store processed IDs in Bigtable or Memorystore for fast lookup.
+
+**Q25. What are Pub/Sub snapshots and when are they used?**
+
+Snapshots capture the state of a subscription at a point in time, retaining unacknowledged messages. They enable replay: you can seek a subscription back to a snapshot to reprocess messages after a bug fix. Retained for up to 7 days.
 
 Cloud Composer / Airflow
 ------------------------
 
-**Q26. How do you design idempotent DAGs in Airflow?**Each task should produce the same result regardless of how many times it runs. Use execution\_date as a partition key, implement upserts (MERGE) instead of inserts, check for existence before writing, and use catchup=False unless backfilling is explicitly needed.
+**Q26. How do you design idempotent DAGs in Airflow?**
 
-**Q27. What is the XCom mechanism and what are its limitations?**XComs (cross-communications) allow tasks to share small amounts of data via Airflow's metadata database. They're suitable for IDs, status flags, or small strings — not large datasets. Storing large payloads via XCom causes metadata DB bloat; instead write to GCS and pass the path.
+Each task should produce the same result regardless of how many times it runs. Use execution\_date as a partition key, implement upserts (MERGE) instead of inserts, check for existence before writing, and use catchup=False unless backfilling is explicitly needed.
 
-**Q28. How do you implement dynamic DAG generation in Airflow?**Generate DAGs programmatically in Python by iterating over a config (e.g., a JSON file in GCS or a DB query) at DAG file parse time. Use globals()\[dag\_id\] = dag to register each. Be cautious: excessive dynamic DAGs slow the scheduler; use DAG factories with caching.
+**Q27. What is the XCom mechanism and what are its limitations?**
 
-**Q29. What is the difference between Airflow's Sequential, Local, and Celery executors?**Sequential runs one task at a time (dev only). Local executor runs tasks in parallel on the same machine. Celery distributes tasks across worker nodes using a message broker (Redis/RabbitMQ). Cloud Composer uses Celery (Composer 1) or Kubernetes (Composer 2) executors.
+XComs (cross-communications) allow tasks to share small amounts of data via Airflow's metadata database. They're suitable for IDs, status flags, or small strings — not large datasets. Storing large payloads via XCom causes metadata DB bloat; instead write to GCS and pass the path.
 
-**Q30. How do you handle secrets management in Cloud Composer?**Use the Secret Manager backend for Airflow connections and variables. Configure \[secrets\] backend = airflow.providers.google.cloud.secrets.secret\_manager.CloudSecretManagerBackend in airflow.cfg. This avoids storing credentials in the Airflow metadata DB, which is less secure.
+**Q28. How do you implement dynamic DAG generation in Airflow?**
+
+Generate DAGs programmatically in Python by iterating over a config (e.g., a JSON file in GCS or a DB query) at DAG file parse time. Use globals()\[dag\_id\] = dag to register each. Be cautious: excessive dynamic DAGs slow the scheduler; use DAG factories with caching.
+
+**Q29. What is the difference between Airflow's Sequential, Local, and Celery executors?**
+
+Sequential runs one task at a time (dev only). Local executor runs tasks in parallel on the same machine. Celery distributes tasks across worker nodes using a message broker (Redis/RabbitMQ). Cloud Composer uses Celery (Composer 1) or Kubernetes (Composer 2) executors.
+
+**Q30. How do you handle secrets management in Cloud Composer?**
+
+Use the Secret Manager backend for Airflow connections and variables. Configure \[secrets\] backend = airflow.providers.google.cloud.secrets.secret\_manager.CloudSecretManagerBackend in airflow.cfg. This avoids storing credentials in the Airflow metadata DB, which is less secure.
 
 DataFusion & ETL
 ----------------
 
-**Q31. When would you choose DataFusion over building a custom Dataflow pipeline?**DataFusion is better for teams needing a visual, low-code ETL tool with pre-built connectors (SAP, Salesforce, JDBC). Use it when development speed matters more than fine-grained control. For high-performance, complex transformations or custom business logic, Dataflow (Beam) is preferable.
+**Q31. When would you choose DataFusion over building a custom Dataflow pipeline?**
 
-**Q32. How does DataFusion handle lineage and metadata?**DataFusion integrates with Data Catalog to automatically push lineage metadata when pipelines run. Each pipeline execution records source-to-target field-level lineage, enabling impact analysis and data governance without manual documentation.
+DataFusion is better for teams needing a visual, low-code ETL tool with pre-built connectors (SAP, Salesforce, JDBC). Use it when development speed matters more than fine-grained control. For high-performance, complex transformations or custom business logic, Dataflow (Beam) is preferable.
 
-**Q33. What are Wrangler directives in DataFusion?**Wrangler is DataFusion's interactive data preparation tool. Directives are transformation instructions (e.g., parse-as-csv, mask-data, filter-rows-on) applied visually or programmatically. They generate a recipe that becomes a pipeline stage.
+**Q32. How does DataFusion handle lineage and metadata?**
 
-**Q34. How do you optimize DataFusion pipeline performance?**Partition source data before reading, push down filters to the source plugin, increase executor/driver memory for the Dataproc cluster, use native execution plugins (e.g., BigQuery Sink with direct write), and avoid unnecessary field mappings that add serialization overhead.
+DataFusion integrates with Data Catalog to automatically push lineage metadata when pipelines run. Each pipeline execution records source-to-target field-level lineage, enabling impact analysis and data governance without manual documentation.
 
-**Q35. Explain the DataFusion plugin architecture.**DataFusion uses a plugin framework (CDAP-based) where each pipeline stage is a plugin (Source, Transform, Sink, Action, Condition). Plugins are versioned, deployable as JARs, and configurable via JSON. Custom plugins can be built using the Java SDK for proprietary systems.
+**Q33. What are Wrangler directives in DataFusion?**
+
+Wrangler is DataFusion's interactive data preparation tool. Directives are transformation instructions (e.g., parse-as-csv, mask-data, filter-rows-on) applied visually or programmatically. They generate a recipe that becomes a pipeline stage.
+
+**Q34. How do you optimize DataFusion pipeline performance?**
+
+Partition source data before reading, push down filters to the source plugin, increase executor/driver memory for the Dataproc cluster, use native execution plugins (e.g., BigQuery Sink with direct write), and avoid unnecessary field mappings that add serialization overhead.
+
+**Q35. Explain the DataFusion plugin architecture.**
+
+DataFusion uses a plugin framework (CDAP-based) where each pipeline stage is a plugin (Source, Transform, Sink, Action, Condition). Plugins are versioned, deployable as JARs, and configurable via JSON. Custom plugins can be built using the Java SDK for proprietary systems.
 
 Cloud SQL, GCS & Storage
 ------------------------
 
-**Q36. How do you migrate a large Cloud SQL database with minimal downtime?**Use Database Migration Service (DMS) for continuous replication. Set up DMS with a connection profile pointing to the source, run full dump + CDC replication, validate row counts and checksums, then perform a controlled cutover during a low-traffic window.
+**Q36. How do you migrate a large Cloud SQL database with minimal downtime?**
+
+Use Database Migration Service (DMS) for continuous replication. Set up DMS with a connection profile pointing to the source, run full dump + CDC replication, validate row counts and checksums, then perform a controlled cutover during a low-traffic window.
 
 **Q37. What GCS storage classes would you choose for a data lake's different zones?**
 
@@ -102,20 +174,32 @@ Cloud SQL, GCS & Storage
 *   **Long-term archive** (>1 year): Archive classUse Lifecycle Management policies to auto-transition objects between classes.
     
 
-**Q38. How do you handle small-file problems in GCS-based data lakes?**Small files cause excessive metadata overhead and slow Dataflow/Dataproc reads. Compact them using Dataflow's WriteFiles with sharding hints, or run a periodic compaction job (using Dataflow or Spark) to combine small Parquet/Avro files into larger ones.
+**Q38. How do you handle small-file problems in GCS-based data lakes?**
 
-**Q39. What is the difference between GCS Uniform Bucket-Level Access and ACLs?**Uniform Bucket-Level Access disables object-level ACLs and enforces IAM only at the bucket/project level, simplifying governance. ACLs allow per-object permissions but are harder to audit. Uniform access is the recommended security posture for enterprise data lakes.
+Small files cause excessive metadata overhead and slow Dataflow/Dataproc reads. Compact them using Dataflow's WriteFiles with sharding hints, or run a periodic compaction job (using Dataflow or Spark) to combine small Parquet/Avro files into larger ones.
 
-**Q40. How do you implement data retention policies in GCS?**Use Object Lifecycle Management rules to delete or transition objects based on age, creation date, or number of newer versions. For compliance (e.g., GDPR), use Object Lock (retention policies) to prevent deletion within a retention period, combined with DLP scans to identify PII.
+**Q39. What is the difference between GCS Uniform Bucket-Level Access and ACLs?**
+
+Uniform Bucket-Level Access disables object-level ACLs and enforces IAM only at the bucket/project level, simplifying governance. ACLs allow per-object permissions but are harder to audit. Uniform access is the recommended security posture for enterprise data lakes.
+
+**Q40. How do you implement data retention policies in GCS?**
+
+Use Object Lifecycle Management rules to delete or transition objects based on age, creation date, or number of newer versions. For compliance (e.g., GDPR), use Object Lock (retention policies) to prevent deletion within a retention period, combined with DLP scans to identify PII.
 
 CI/CD, IaC & DevOps for Data
 ----------------------------
 
-**Q41. How do you implement CI/CD for BigQuery SQL transformations?**Use dbt or Dataform with a Git-based workflow. On PR, run dbt compile + dbt test in a CI pipeline (GitHub Actions/Cloud Build). On merge to main, deploy to a staging dataset, run integration tests, then promote to production using environment-specific profiles.
+**Q41. How do you implement CI/CD for BigQuery SQL transformations?**
 
-**Q42. How do you manage Terraform state for multi-environment GCP data infrastructure?**Use remote state in GCS with separate state files per environment (dev/staging/prod). Enable state locking with GCS. Use Terraform workspaces or separate directories per environment with a shared modules structure to avoid drift and enable code reuse.
+Use dbt or Dataform with a Git-based workflow. On PR, run dbt compile + dbt test in a CI pipeline (GitHub Actions/Cloud Build). On merge to main, deploy to a staging dataset, run integration tests, then promote to production using environment-specific profiles.
 
-**Q43. How do you implement blue-green deployments for data pipelines?**Deploy the new pipeline version in parallel (green) alongside the current (blue). Route a subset of traffic (e.g., Pub/Sub subscription) to green. Validate outputs by comparing BigQuery table checksums or row counts. Once validated, cut all traffic to green and decommission blue.
+**Q42. How do you manage Terraform state for multi-environment GCP data infrastructure?**
+
+Use remote state in GCS with separate state files per environment (dev/staging/prod). Enable state locking with GCS. Use Terraform workspaces or separate directories per environment with a shared modules structure to avoid drift and enable code reuse.
+
+**Q43. How do you implement blue-green deployments for data pipelines?**
+
+Deploy the new pipeline version in parallel (green) alongside the current (blue). Route a subset of traffic (e.g., Pub/Sub subscription) to green. Validate outputs by comparing BigQuery table checksums or row counts. Once validated, cut all traffic to green and decommission blue.
 
 **Q44. What is your approach to testing data pipelines?**
 
@@ -128,25 +212,39 @@ CI/CD, IaC & DevOps for Data
 *   **Contract tests**: Validate schema compatibility between producer/consumer
     
 
-**Q45. How do you handle Airflow DAG versioning in CI/CD?**Store DAGs in a Git repo. CI pipeline runs pylint, flake8, and pytest on DAG files. Deployment uses gsutil rsync or Cloud Build to sync the DAG bucket. Use DAG tags for versioning and feature flags in DAG configs to enable/disable new logic without redeployment.
+**Q45. How do you handle Airflow DAG versioning in CI/CD?**
+
+Store DAGs in a Git repo. CI pipeline runs pylint, flake8, and pytest on DAG files. Deployment uses gsutil rsync or Cloud Build to sync the DAG bucket. Use DAG tags for versioning and feature flags in DAG configs to enable/disable new logic without redeployment.
 
 Security & Governance
 ---------------------
 
-**Q46. How do you implement column-level security for PII in BigQuery?**Use BigQuery's policy tags (taxonomy defined in Data Catalog). Assign tags like PII.email, PII.phone to columns. Grant Fine-Grained Reader role only to authorized users. Unauthorized users see NULL when querying masked columns, without needing to change SQL.
+**Q46. How do you implement column-level security for PII in BigQuery?**
 
-**Q47. What is Cloud DLP and how do you integrate it into a data pipeline?**Cloud DLP (Data Loss Prevention) detects, classifies, and optionally de-identifies sensitive data. Integrate it as a Dataflow step using the DlpInspectTransform to scan streaming records for PII, route matches to a quarantine topic, and apply tokenization or masking before writing to BigQuery.
+Use BigQuery's policy tags (taxonomy defined in Data Catalog). Assign tags like PII.email, PII.phone to columns. Grant Fine-Grained Reader role only to authorized users. Unauthorized users see NULL when querying masked columns, without needing to change SQL.
 
-**Q48. How do you implement VPC Service Controls for a BigQuery data warehouse?**Define a VPC Service Controls perimeter around BigQuery, GCS, and Cloud KMS projects. Resources inside the perimeter can communicate freely; access from outside requires an access level (IP range or identity). This prevents data exfiltration even by privileged insiders.
+**Q47. What is Cloud DLP and how do you integrate it into a data pipeline?**
 
-**Q49. Explain the principle of least privilege in GCP IAM for data teams.**Assign the most restrictive role that allows the required actions. Use predefined roles (e.g., roles/bigquery.dataViewer) over primitive roles. For pipeline service accounts, grant only the specific resources they need access to (e.g., a single dataset, not the whole project). Use Conditions for time-bound access.
+Cloud DLP (Data Loss Prevention) detects, classifies, and optionally de-identifies sensitive data. Integrate it as a Dataflow step using the DlpInspectTransform to scan streaming records for PII, route matches to a quarantine topic, and apply tokenization or masking before writing to BigQuery.
 
-**Q50. How do you audit data access in BigQuery?**Enable Cloud Audit Logs (Data Access logs: DATA\_READ, DATA\_WRITE). Export audit logs to BigQuery via a log sink for analysis. Use INFORMATION\_SCHEMA.JOBS for query-level auditing. Set up alerts in Cloud Monitoring for unusual patterns (e.g., large exports or off-hours access).
+**Q48. How do you implement VPC Service Controls for a BigQuery data warehouse?**
+
+Define a VPC Service Controls perimeter around BigQuery, GCS, and Cloud KMS projects. Resources inside the perimeter can communicate freely; access from outside requires an access level (IP range or identity). This prevents data exfiltration even by privileged insiders.
+
+**Q49. Explain the principle of least privilege in GCP IAM for data teams.**
+
+Assign the most restrictive role that allows the required actions. Use predefined roles (e.g., roles/bigquery.dataViewer) over primitive roles. For pipeline service accounts, grant only the specific resources they need access to (e.g., a single dataset, not the whole project). Use Conditions for time-bound access.
+
+**Q50. How do you audit data access in BigQuery?**
+
+Enable Cloud Audit Logs (Data Access logs: DATA\_READ, DATA\_WRITE). Export audit logs to BigQuery via a log sink for analysis. Use INFORMATION\_SCHEMA.JOBS for query-level auditing. Set up alerts in Cloud Monitoring for unusual patterns (e.g., large exports or off-hours access).
 
 Data Modelling (Advanced)
 -------------------------
 
-**Q51. When would you use a Data Vault model vs. a Kimball star schema in BigQuery?**Data Vault is better for ingesting raw data from many heterogeneous sources with full historization and auditability (Hub-Satellite-Link). Kimball star schemas are optimized for query performance and BI tool consumption. Many modern architectures use Data Vault in the raw/staging layer and star schemas in the presentation layer.
+**Q51. When would you use a Data Vault model vs. a Kimball star schema in BigQuery?**
+
+Data Vault is better for ingesting raw data from many heterogeneous sources with full historization and auditability (Hub-Satellite-Link). Kimball star schemas are optimized for query performance and BI tool consumption. Many modern architectures use Data Vault in the raw/staging layer and star schemas in the presentation layer.
 
 **Q52. How do you model slowly changing dimensions (SCD) in BigQuery?**
 
@@ -157,30 +255,43 @@ Data Modelling (Advanced)
 *   **SCD Type 4**: Use a separate history tableBigQuery's MERGE statement handles SCD Type 2 efficiently with partitioning on valid\_from.
     
 
-**Q53. Explain dimensional modelling in the context of a data lakehouse.**A lakehouse combines raw storage (GCS) with query capability (BigQuery external tables or BQ native). Apply dimensional modelling in the curated/gold layer: fact tables hold measurable events, dimension tables hold descriptive attributes. Use BigQuery materialized views to pre-aggregate facts for BI tools.
+**Q53. Explain dimensional modelling in the context of a data lakehouse.**
 
-**Q54. How do you handle many-to-many relationships in BigQuery models?**Use a bridge table (fact-less fact table) to resolve M:M relationships. In BigQuery, you can also use ARRAY of STRUCT for denormalized representations, which avoids JOINs and leverages BigQuery's nested data model for better query performance.
+A lakehouse combines raw storage (GCS) with query capability (BigQuery external tables or BQ native). Apply dimensional modelling in the curated/gold layer: fact tables hold measurable events, dimension tables hold descriptive attributes. Use BigQuery materialized views to pre-aggregate facts for BI tools.
 
-**Q55. What is the difference between a star schema and a snowflake schema, and which is better for BigQuery?**Star schema denormalizes dimensions into single wide tables; snowflake normalizes them into multiple related tables. BigQuery favors star schemas (denormalized) because JOIN costs are high at petabyte scale, storage is cheap, and nested/repeated fields handle hierarchy more efficiently than snowflake joins.
+**Q54. How do you handle many-to-many relationships in BigQuery models?**
+
+Use a bridge table (fact-less fact table) to resolve M:M relationships. In BigQuery, you can also use ARRAY of STRUCT for denormalized representations, which avoids JOINs and leverages BigQuery's nested data model for better query performance.
+
+**Q55. What is the difference between a star schema and a snowflake schema, and which is better for BigQuery?**
+
+Star schema denormalizes dimensions into single wide tables; snowflake normalizes them into multiple related tables. BigQuery favors star schemas (denormalized) because JOIN costs are high at petabyte scale, storage is cheap, and nested/repeated fields handle hierarchy more efficiently than snowflake joins.
 
 Streaming & Real-Time
 ---------------------
 
-**Q56. How do you design a Lambda architecture on GCP?**Batch layer: GCS → Dataflow batch → BigQuery. Speed layer: Pub/Sub → Dataflow streaming → Bigtable/BigQuery streaming buffer. Serving layer: BigQuery views that UNION both layers. Modern trend is to replace Lambda with Kappa (streaming only, replaying for batch corrections).
+**Q56. How do you design a Lambda architecture on GCP?**
 
-**Q57. What is a Kappa architecture and why is it preferred for modern GCP designs?**Kappa uses a single streaming pipeline for both real-time and historical processing by replaying events from a durable log (Pub/Sub with retention or GCS). It's simpler to operate than Lambda (one codebase), and Dataflow's unified batch/streaming model makes it practical on GCP.
+Batch layer: GCS → Dataflow batch → BigQuery. Speed layer: Pub/Sub → Dataflow streaming → Bigtable/BigQuery streaming buffer. Serving layer: BigQuery views that UNION both layers. Modern trend is to replace Lambda with Kappa (streaming only, replaying for batch corrections).
 
-**Q58. How do you handle backpressure in a Pub/Sub → Dataflow pipeline?**Dataflow automatically applies backpressure by controlling the pull rate from Pub/Sub based on worker capacity. Monitor pubsub.googleapis.com/subscription/oldest\_unacked\_message\_age — if it grows, scale workers or optimize processing. Enable Streaming Engine for better flow control.
+**Q57. What is a Kappa architecture and why is it preferred for modern GCP designs?**
 
-**Q59. What is Change Data Capture (CDC) and how do you implement it on GCP?**CDC captures row-level changes (INSERT/UPDATE/DELETE) from a transactional database in real time. On GCP: use Datastream to read CDC from Cloud SQL/AlloyDB/MySQL/PostgreSQL → write to GCS or BigQuery. Datastream uses log-based CDC (reads transaction logs) for minimal DB impact.​
+Kappa uses a single streaming pipeline for both real-time and historical processing by replaying events from a durable log (Pub/Sub with retention or GCS). It's simpler to operate than Lambda (one codebase), and Dataflow's unified batch/streaming model makes it practical on GCP.
 
-**Q60. How do you implement exactly-once end-to-end from Pub/Sub to BigQuery?**Use Pub/Sub's exactly-once delivery (enabled on subscription) + Dataflow's exactly-once mode + BigQuery Storage Write API in committed mode. Each layer guarantees no duplicates. Without all three, use idempotency keys and MERGE in BigQuery to deduplicate on arrival.
+**Q58. How do you handle backpressure in a Pub/Sub → Dataflow pipeline?**
+
+Dataflow automatically applies backpressure by controlling the pull rate from Pub/Sub based on worker capacity. Monitor pubsub.googleapis.com/subscription/oldest\_unacked\_message\_age — if it grows, scale workers or optimize processing. Enable Streaming Engine for better flow control.
+
+**Q59. What is Change Data Capture (CDC) and how do you implement it on GCP?**
+
+CDC captures row-level changes (INSERT/UPDATE/DELETE) from a transactional database in real time. On GCP: use Datastream to read CDC from Cloud SQL/AlloyDB/MySQL/PostgreSQL → write to GCS or BigQuery. Datastream uses log-based CDC (reads transaction logs) for minimal DB impact.​
+
+**Q60. How do you implement exactly-once end-to-end from Pub/Sub to BigQuery?**
+
+Use Pub/Sub's exactly-once delivery (enabled on subscription) + Dataflow's exactly-once mode + BigQuery Storage Write API in committed mode. Each layer guarantees no duplicates. Without all three, use idempotency keys and MERGE in BigQuery to deduplicate on arrival.
 
 Q61–Q70: Performance & Cost Optimization
 ========================================
-
-Q61. Use APPROX\_COUNT\_DISTINCT and Approximate Functions
-----------------------------------------------------------
 
 **Q61. When and why should you use APPROX\_COUNT\_DISTINCT instead of COUNT(DISTINCT ...) in BigQuery?**
 
