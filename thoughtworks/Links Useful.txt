@@ -1,0 +1,8 @@
+https://thoughtworks.medium.com/https-www-thoughtworks-com-insights-blog-generative-ai-how-to-evaluate-an-llm-system-4faa46f56575
+
+
+https://martinfowler.com/articles/gen-ai-patterns/#guardrails
+
+
+https://github.com/techops-recsys-lateral-hiring/aiengineer-llm-python
+
