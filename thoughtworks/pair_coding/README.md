@@ -117,3 +117,22 @@ colima stop
 This repository is maintained by the Thoughtworks Recruitment.
 
 ---
+
+```
+bash
+# Check if Docker Compose (V2 plugin) is available, or fallback to legacy docker-compose (V1)
+echo "Checking Docker Compose..."
+if docker compose version &> /dev/null; then
+    # Define a helper function so we use docker compose (V2) throughout
+    docker-compose() {
+        docker compose "$@"
+    }
+    print_success "Docker Compose (v2/v5 plugin) is installed"
+elif command -v docker-compose &> /dev/null; then
+    print_success "Docker Compose (v1 legacy) is installed"
+else
+    print_error "Docker Compose is not installed. Please install it first."
+    exit 1
+fi
+echo ""
+```
