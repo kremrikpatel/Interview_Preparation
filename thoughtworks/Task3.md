@@ -93,10 +93,10 @@ flowchart TD
 > - A false positive merely requires the customer to rephrase their query.
 > - The cost asymmetry is ~100:1 (injection cost vs. rephrasing inconvenience).
 
-**Mitigation for false positives:**
-- The structured logging enables tracking FP rates over time.
-- Regular review of blocked queries to identify and exclude legitimate patterns.
-- Customer-facing message guides users to rephrase: `"I cannot process this request"` rather than a generic error.
+> **Mitigation for false positives:**
+> - The structured logging enables tracking FP rates over time.
+> - Regular review of blocked queries to identify and exclude legitimate patterns.
+> - Customer-facing message guides users to rephrase: `"I cannot process this request"` rather than a generic error.
 
 #### ⚡ Latency vs Thoroughness
 - **Regex-based guards** add `< 1 ms` per request — use them liberally.
