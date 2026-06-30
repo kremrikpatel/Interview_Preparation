@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MYOB — Self-Evaluating RAG Pipeline Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy: #0B1D3A;
+    --deep-blue: #14284B;
+    --accent-purple: #6C5CE7;
+    --accent-teal: #00B894;
+    --accent-orange: #E17055;
+    --accent-pink: #FD79A8;
+    --accent-yellow: #FDCB6E;
+    --text-primary: #E8ECF1;
+    --text-secondary: #9AAEC0;
+    --surface: #162040;
+    --surface-raised: #1C2A50;
+    --border: #2A3A60;
+    --success: #00B894;
+    --warning: #FDCB6E;
+    --danger: #E17055;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--navy);
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+
+  /* Header */
+  .doc-header {
+    background: linear-gradient(135deg, var(--deep-blue), #1a1a4e);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 0 50px;
+  }
+  .doc-header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    margin-bottom: 16px;
+  }
+  .doc-header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, #fff, var(--accent-teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .doc-header .subtitle {
+    font-size: 17px;
+    color: var(--text-secondary);
+    max-width: 700px;
+  }
+  .meta-row {
+    margin-top: 30px;
+    display: flex;
+    gap: 32px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .meta-row span { color: var(--accent-teal); }
+
+  /* Navigation */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px 32px;
+    margin: 40px 0;
+  }
+  .toc h3 {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+    columns: 2;
+    gap: 40px;
+  }
+  .toc li {
+    counter-increment: toc;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-purple);
+    margin-right: 12px;
+    font-size: 12px;
+  }
+  .toc a { color: var(--text-secondary); text-decoration: none; }
+  .toc a:hover { color: var(--accent-teal); }
+
+  /* Sections */
+  section {
+    margin: 56px 0;
+    padding-top: 24px;
+  }
+  section > h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  section > h2 .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent-purple);
+    background: rgba(108,92,231,.15);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+  section > .section-desc {
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+    max-width: 800px;
+  }
+
+  h3 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 36px 0 12px;
+    color: var(--accent-teal);
+  }
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 24px 0 8px;
+    color: var(--accent-yellow);
+  }
+
+  p { margin-bottom: 14px; max-width: 800px; }
+  ul, ol { margin: 10px 0 18px 24px; max-width: 800px; }
+  li { margin-bottom: 6px; }
+
+  /* Diagram containers */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    margin: 28px 0 36px;
+    overflow-x: auto;
+  }
+  .diagram-wrap .diagram-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-purple);
+    margin-bottom: 20px;
+  }
+  .diagram-wrap svg {
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* Info cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    margin: 24px 0 32px;
+  }
+  .card {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    border-left: 3px solid var(--accent-purple);
+  }
+  .card.teal { border-left-color: var(--accent-teal); }
+  .card.orange { border-left-color: var(--accent-orange); }
+  .card.pink { border-left-color: var(--accent-pink); }
+  .card.yellow { border-left-color: var(--accent-yellow); }
+  .card h4 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    color: #fff;
+  }
+  .card p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0 28px;
+    font-size: 13px;
+  }
+  th {
+    background: var(--surface-raised);
+    color: var(--accent-teal);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  tr:hover td { background: rgba(108,92,231,.05); }
+
+  /* Callout */
+  .callout {
+    background: rgba(108,92,231,.1);
+    border-left: 3px solid var(--accent-purple);
+    border-radius: 0 8px 8px 0;
+    padding: 20px 24px;
+    margin: 24px 0;
+    font-size: 14px;
+  }
+  .callout.warn {
+    background: rgba(225,112,85,.1);
+    border-left-color: var(--accent-orange);
+  }
+  .callout.success {
+    background: rgba(0,184,148,.1);
+    border-left-color: var(--accent-teal);
+  }
+  .callout strong { color: #fff; }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--surface-raised);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--accent-teal);
+  }
+
+  .divider {
+    border: none;
+    height: 1px;
+    background: var(--border);
+    margin: 48px 0;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-top: 60px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<header class="doc-header">
+  <div class="container">
+    <div class="eyebrow">MYOB AI Engineering &mdash; Architecture Document</div>
+    <h1>Self-Evaluating RAG Pipeline with<br>Hybrid Search &amp; LLM-as-Judge</h1>
+    <p class="subtitle">A comprehensive architecture for internal documentation retrieval, HR policy access, and intelligent project prioritisation across MYOB's central knowledge base.</p>
+    <div class="meta-row">
+      <div>Author <span>Senior AI Engineer</span></div>
+      <div>Version <span>2.0</span></div>
+      <div>Status <span>Proposed</span></div>
+      <div>Date <span>June 2026</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+<!-- ==================== TOC ==================== -->
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#s1">Executive Summary &amp; Business Problems</a></li>
+    <li><a href="#s2">Ingestion Pipeline</a></li>
+    <li><a href="#s3">Augmented Generation Process</a></li>
+    <li><a href="#s4">Retrieval Augmented Generation Process</a></li>
+    <li><a href="#s5">Experiment-to-Production Pathways</a></li>
+    <li><a href="#s6">Production Scenario &mdash; End-to-End</a></li>
+    <li><a href="#s7">Evaluation &amp; Monitoring</a></li>
+    <li><a href="#s8">Business Solution: HR Policy Access</a></li>
+    <li><a href="#s9">Business Solution: Project Prioritisation Engine</a></li>
+    <li><a href="#s10">Trade-off Analysis &amp; Decision Framework</a></li>
+  </ol>
+</nav>
+
+<!-- ==================== 1. EXECUTIVE SUMMARY ==================== -->
+<section id="s1">
+  <h2><span class="num">01</span> Executive Summary &amp; Business Problems</h2>
+  <p class="section-desc">MYOB maintains a central internal documentation platform spanning HR policies, project documentation, and technical documentation. Two critical business problems drive this initiative.</p>
+
+  <div class="card-grid">
+    <div class="card orange">
+      <h4>Problem 1 &mdash; HR Policy Access</h4>
+      <p>Staff struggle to locate relevant HR policies across hundreds of documents. Queries like "what is the parental leave policy?" require manual searching across multiple repositories, categories, and document versions, leading to outdated information being used and increased HR team workload from repetitive questions.</p>
+    </div>
+    <div class="card teal">
+      <h4>Problem 2 &mdash; Project Prioritisation</h4>
+      <p>With dozens of active and proposed projects, technical leadership lacks a data-driven mechanism to identify and rank the top 10 high-priority projects. Decisions are currently made through ad-hoc meetings without systematic evaluation of risk, cost, criticality, and cross-project dependencies.</p>
+    </div>
+  </div>
+
+  <h3>Proposed Solution</h3>
+  <p>A self-evaluating RAG pipeline with hybrid search (dense vector + sparse BM25) that ingests MYOB's central documentation, serves natural-language queries with cited answers, and includes an LLM-as-Judge evaluation layer for continuous quality assurance. Two specialised agents sit atop this pipeline: an HR Policy Assistant and a Project Prioritisation Engine.</p>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 2. INGESTION PIPELINE ==================== -->
+<section id="s2">
+  <h2><span class="num">02</span> Ingestion Pipeline</h2>
+  <p class="section-desc">The ingestion pipeline transforms raw documents from MYOB's central documentation into searchable vector and keyword indices, handling multiple formats, category-aware metadata, and incremental updates.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Document Ingestion Pipeline</div>
+    <svg viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <!-- Background -->
+      <rect width="1100" height="520" fill="#0B1D3A" rx="8"/>
+
+      <!-- Source Layer -->
+      <rect x="30" y="30" width="200" height="460" rx="6" fill="none" stroke="#2A3A60" stroke-dasharray="6,4"/>
+      <text x="130" y="22" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono" letter-spacing="1.5">DATA SOURCES</text>
+
+      <rect x="50" y="55" width="160" height="46" rx="5" fill="#1C2A50" stroke="#6C5CE7" stroke-width="1.5"/>
+      <text x="130" y="75" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">HR Policies</text>
+      <text x="130" y="91" text-anchor="middle" fill="#9AAEC0" font-size="10">PDF, DOCX, Wiki</text>
+
+      <rect x="50" y="115" width="160" height="46" rx="5" fill="#1C2A50" stroke="#00B894" stroke-width="1.5"/>
+      <text x="130" y="135" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Project Docs</text>
+      <text x="130" y="151" text-anchor="middle" fill="#9AAEC0" font-size="10">Confluence, Jira, MD</text>
+
+      <rect x="50" y="175" width="160" height="46" rx="5" fill="#1C2A50" stroke="#E17055" stroke-width="1.5"/>
+      <text x="130" y="195" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Technical Docs</text>
+      <text x="130" y="211" text-anchor="middle" fill="#9AAEC0" font-size="10">API specs, Runbooks</text>
+
+      <rect x="50" y="235" width="160" height="46" rx="5" fill="#1C2A50" stroke="#FDCB6E" stroke-width="1.5"/>
+      <text x="130" y="255" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Metadata Store</text>
+      <text x="130" y="271" text-anchor="middle" fill="#9AAEC0" font-size="10">Tags, Owners, Dates</text>
+
+      <!-- Arrows from sources -->
+      <line x1="210" y1="78" x2="260" y2="160" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+      <line x1="210" y1="138" x2="260" y2="160" stroke="#00B894" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+      <line x1="210" y1="198" x2="260" y2="165" stroke="#E17055" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+      <line x1="210" y1="258" x2="260" y2="170" stroke="#FDCB6E" stroke-width="1.5" marker-end="url(#arrow-yellow)"/>
+
+      <!-- Processing Pipeline -->
+      <rect x="260" y="120" width="160" height="80" rx="5" fill="#162040" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="340" y="148" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">STEP 1</text>
+      <text x="340" y="166" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Document Loader</text>
+      <text x="340" y="183" text-anchor="middle" fill="#9AAEC0" font-size="10">Parse &amp; Extract Text</text>
+
+      <line x1="420" y1="160" x2="460" y2="160" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="460" y="120" width="160" height="80" rx="5" fill="#162040" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="540" y="148" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">STEP 2</text>
+      <text x="540" y="166" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Chunking Engine</text>
+      <text x="540" y="183" text-anchor="middle" fill="#9AAEC0" font-size="10">Semantic + Overlap</text>
+
+      <line x1="620" y1="160" x2="660" y2="160" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="660" y="120" width="160" height="80" rx="5" fill="#162040" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="740" y="148" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">STEP 3</text>
+      <text x="740" y="166" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Metadata Enricher</text>
+      <text x="740" y="183" text-anchor="middle" fill="#9AAEC0" font-size="10">Category + Tags</text>
+
+      <line x1="820" y1="160" x2="860" y2="160" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="860" y="120" width="200" height="80" rx="5" fill="#162040" stroke="#00B894" stroke-width="2"/>
+      <text x="960" y="148" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">STEP 4</text>
+      <text x="960" y="166" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Embedding Generator</text>
+      <text x="960" y="183" text-anchor="middle" fill="#9AAEC0" font-size="10">text-embedding-3-large</text>
+
+      <!-- Output Stores -->
+      <line x1="960" y1="200" x2="960" y2="250" stroke="#00B894" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+
+      <rect x="260" y="280" width="200" height="70" rx="5" fill="#1C2A50" stroke="#00B894" stroke-width="2"/>
+      <text x="360" y="308" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">VECTOR INDEX</text>
+      <text x="360" y="328" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Pinecone / Weaviate</text>
+      <text x="360" y="344" text-anchor="middle" fill="#9AAEC0" font-size="10">Dense Retrieval (ANN)</text>
+
+      <rect x="500" y="280" width="200" height="70" rx="5" fill="#1C2A50" stroke="#E17055" stroke-width="2"/>
+      <text x="600" y="308" text-anchor="middle" fill="#E17055" font-size="10" font-family="JetBrains Mono">KEYWORD INDEX</text>
+      <text x="600" y="328" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Elasticsearch / BM25</text>
+      <text x="600" y="344" text-anchor="middle" fill="#9AAEC0" font-size="10">Sparse Retrieval</text>
+
+      <rect x="740" y="280" width="200" height="70" rx="5" fill="#1C2A50" stroke="#FDCB6E" stroke-width="2"/>
+      <text x="840" y="308" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">DOCUMENT STORE</text>
+      <text x="840" y="328" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">PostgreSQL + S3</text>
+      <text x="840" y="344" text-anchor="middle" fill="#9AAEC0" font-size="10">Full docs + Metadata</text>
+
+      <line x1="960" y1="270" x2="360" y2="280" stroke="#00B894" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <line x1="960" y1="270" x2="600" y2="280" stroke="#E17055" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <line x1="960" y1="270" x2="840" y2="280" stroke="#FDCB6E" stroke-width="1.2" stroke-dasharray="4,3"/>
+
+      <!-- Scheduler -->
+      <rect x="260" y="400" width="680" height="70" rx="5" fill="none" stroke="#FD79A8" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="600" y="425" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono" letter-spacing="1">INCREMENTAL SYNC SCHEDULER</text>
+      <text x="600" y="445" text-anchor="middle" fill="#9AAEC0" font-size="11">Webhook listeners + Cron jobs &bull; Change detection via content hashing &bull; Delta re-indexing</text>
+      <text x="600" y="460" text-anchor="middle" fill="#9AAEC0" font-size="11">Version tracking &bull; Stale document alerts &bull; Category re-classification triggers</text>
+
+      <line x1="600" y1="400" x2="600" y2="350" stroke="#FD79A8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-pink)"/>
+
+      <!-- Arrow defs -->
+      <defs>
+        <marker id="arrow-purple" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#6C5CE7"/></marker>
+        <marker id="arrow-teal" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00B894"/></marker>
+        <marker id="arrow-orange" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#E17055"/></marker>
+        <marker id="arrow-yellow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FDCB6E"/></marker>
+        <marker id="arrow-pink" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FD79A8"/></marker>
+        <marker id="arrow-white" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#E8ECF1"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <h3>Pipeline Components &mdash; Detailed Breakdown</h3>
+
+  <h4>Step 1: Document Loader</h4>
+  <p>The document loader connects to MYOB's central documentation sources via API connectors (Confluence REST API, Jira API, SharePoint Graph API, Git repositories). Each connector normalises content into a unified intermediate representation containing raw text, structural markers (headings, tables, lists), and source metadata (URL, author, last-modified timestamp, document category). PDF and DOCX files are parsed using Apache Tika with OCR fallback for scanned documents. The loader maintains a content-hash registry in PostgreSQL to detect changes on subsequent runs, ensuring only modified documents are re-processed.</p>
+
+  <h4>Step 2: Chunking Engine</h4>
+  <p>Documents are split using a hybrid chunking strategy. The primary method is semantic chunking using sentence-boundary detection with a target chunk size of 512 tokens and 64-token overlap. For structured documents (HR policies with numbered sections, technical runbooks with step sequences), the chunker respects document structure boundaries — never splitting mid-section. Each chunk retains a pointer to its parent document, section hierarchy, and positional index. A secondary "summary chunk" is generated per document using an LLM call to create a 2-3 sentence abstract, enabling document-level retrieval alongside passage-level retrieval.</p>
+
+  <h4>Step 3: Metadata Enricher</h4>
+  <p>Every chunk is tagged with structured metadata: <code>category</code> (HR, Project, Technical), <code>subcategory</code> (e.g. Leave Policies, Security Runbooks), <code>document_owner</code>, <code>last_updated</code>, <code>confidentiality_level</code>, and <code>document_version</code>. For project documents, additional fields include <code>project_name</code>, <code>priority_score</code>, <code>risk_level</code>, <code>estimated_cost</code>, and <code>criticality_rating</code>. An LLM-based classifier assigns categories where manual tagging is absent, using a few-shot prompt trained on MYOB's taxonomy.</p>
+
+  <h4>Step 4: Embedding Generator</h4>
+  <p>Chunks are embedded using OpenAI's <code>text-embedding-3-large</code> (3072 dimensions) or an equivalent open-source model such as BGE-M3 for cost-sensitive workloads. Embeddings are generated in batches of 100 with retry logic and rate-limit handling. Each embedding is stored alongside its metadata in the vector index (Pinecone or Weaviate), while the same chunk text is indexed into Elasticsearch for BM25 keyword search. Full documents and their metadata persist in PostgreSQL with S3-backed blob storage for originals.</p>
+
+  <div class="callout">
+    <strong>Incremental Sync:</strong> The scheduler runs every 6 hours (configurable) and on webhook triggers. It compares content hashes against stored values, re-chunks and re-embeds only changed documents, and marks deleted documents as inactive in the index rather than purging them (soft-delete with 30-day retention).
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 3. AUGMENTED GENERATION ==================== -->
+<section id="s3">
+  <h2><span class="num">03</span> Augmented Generation Process</h2>
+  <p class="section-desc">How the LLM generates responses by augmenting its reasoning with retrieved context, including prompt construction, context window management, and citation grounding.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Augmented Generation Flow</div>
+    <svg viewBox="0 0 1100 400" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="400" fill="#0B1D3A" rx="8"/>
+
+      <!-- Retrieved Context -->
+      <rect x="30" y="40" width="220" height="320" rx="6" fill="none" stroke="#00B894" stroke-dasharray="6,4"/>
+      <text x="140" y="30" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono" letter-spacing="1.5">RETRIEVED CONTEXT</text>
+
+      <rect x="45" y="60" width="190" height="55" rx="4" fill="#1C2A50" stroke="#00B894"/>
+      <text x="140" y="82" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Chunk 1 (score: 0.94)</text>
+      <text x="140" y="100" text-anchor="middle" fill="#9AAEC0" font-size="10">HR &gt; Leave Policy &sect;3.2</text>
+
+      <rect x="45" y="125" width="190" height="55" rx="4" fill="#1C2A50" stroke="#00B894"/>
+      <text x="140" y="147" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Chunk 2 (score: 0.91)</text>
+      <text x="140" y="165" text-anchor="middle" fill="#9AAEC0" font-size="10">HR &gt; Leave Policy &sect;3.4</text>
+
+      <rect x="45" y="190" width="190" height="55" rx="4" fill="#1C2A50" stroke="#00B894"/>
+      <text x="140" y="212" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Chunk 3 (score: 0.87)</text>
+      <text x="140" y="230" text-anchor="middle" fill="#9AAEC0" font-size="10">HR &gt; Benefits &sect;2.1</text>
+
+      <rect x="45" y="260" width="190" height="40" rx="4" fill="#162040" stroke="#2A3A60"/>
+      <text x="140" y="284" text-anchor="middle" fill="#9AAEC0" font-size="10">+ 2 more chunks (re-ranked)</text>
+
+      <rect x="45" y="310" width="190" height="36" rx="4" fill="rgba(108,92,231,.15)" stroke="#6C5CE7"/>
+      <text x="140" y="333" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">RELEVANCE FILTER &gt; 0.75</text>
+
+      <!-- Prompt Builder -->
+      <line x1="250" y1="200" x2="310" y2="200" stroke="#00B894" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+
+      <rect x="310" y="80" width="240" height="240" rx="6" fill="#162040" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="430" y="105" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono" letter-spacing="1">PROMPT CONSTRUCTOR</text>
+
+      <rect x="325" y="120" width="210" height="32" rx="3" fill="#1C2A50"/>
+      <text x="430" y="141" text-anchor="middle" fill="#FDCB6E" font-size="11">System Prompt + Guardrails</text>
+
+      <rect x="325" y="160" width="210" height="32" rx="3" fill="#1C2A50"/>
+      <text x="430" y="181" text-anchor="middle" fill="#00B894" font-size="11">Context: [Retrieved Chunks]</text>
+
+      <rect x="325" y="200" width="210" height="32" rx="3" fill="#1C2A50"/>
+      <text x="430" y="221" text-anchor="middle" fill="#FD79A8" font-size="11">User Query (original)</text>
+
+      <rect x="325" y="240" width="210" height="32" rx="3" fill="#1C2A50"/>
+      <text x="430" y="261" text-anchor="middle" fill="#E17055" font-size="11">Output Format Instructions</text>
+
+      <rect x="325" y="280" width="210" height="28" rx="3" fill="rgba(253,203,110,.1)" stroke="#FDCB6E" stroke-dasharray="4,3"/>
+      <text x="430" y="299" text-anchor="middle" fill="#FDCB6E" font-size="10">Citation requirement rules</text>
+
+      <!-- LLM -->
+      <line x1="550" y1="200" x2="610" y2="200" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="610" y="120" width="190" height="160" rx="6" fill="#162040" stroke="#FD79A8" stroke-width="2"/>
+      <text x="705" y="150" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono" letter-spacing="1">LLM ENGINE</text>
+      <text x="705" y="178" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Claude / GPT-4</text>
+      <text x="705" y="200" text-anchor="middle" fill="#9AAEC0" font-size="10">Temperature: 0.1</text>
+      <text x="705" y="218" text-anchor="middle" fill="#9AAEC0" font-size="10">Max Tokens: 2048</text>
+      <text x="705" y="240" text-anchor="middle" fill="#9AAEC0" font-size="10">Streaming: Enabled</text>
+      <text x="705" y="260" text-anchor="middle" fill="#9AAEC0" font-size="10">Context Window: 128K</text>
+
+      <!-- Output -->
+      <line x1="800" y1="200" x2="860" y2="200" stroke="#FD79A8" stroke-width="1.5" marker-end="url(#arrow-pink)"/>
+
+      <rect x="860" y="100" width="210" height="200" rx="6" fill="#1C2A50" stroke="#00B894" stroke-width="2"/>
+      <text x="965" y="125" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono" letter-spacing="1">STRUCTURED OUTPUT</text>
+
+      <rect x="875" y="140" width="180" height="28" rx="3" fill="#162040"/>
+      <text x="965" y="159" text-anchor="middle" fill="#fff" font-size="11">Answer Text (streamed)</text>
+
+      <rect x="875" y="176" width="180" height="28" rx="3" fill="#162040"/>
+      <text x="965" y="195" text-anchor="middle" fill="#FDCB6E" font-size="11">Source Citations [1][2]</text>
+
+      <rect x="875" y="212" width="180" height="28" rx="3" fill="#162040"/>
+      <text x="965" y="231" text-anchor="middle" fill="#6C5CE7" font-size="11">Confidence Score</text>
+
+      <rect x="875" y="248" width="180" height="28" rx="3" fill="#162040"/>
+      <text x="965" y="267" text-anchor="middle" fill="#E17055" font-size="11">Hallucination Flag</text>
+
+      <!-- Feedback loop -->
+      <path d="M965,300 L965,370 L430,370 L430,320" fill="none" stroke="#FDCB6E" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-yellow)"/>
+      <text x="700" y="385" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">SELF-EVALUATION FEEDBACK LOOP &rarr; LLM-AS-JUDGE</text>
+    </svg>
+  </div>
+
+  <h3>Prompt Engineering Strategy</h3>
+  <p>The prompt constructor assembles four layers into a single completion request. The system prompt establishes the assistant's persona (MYOB Internal Knowledge Assistant), sets behavioural guardrails (no speculation beyond retrieved context, mandatory citations, confidentiality enforcement), and defines the output schema. Retrieved chunks are injected with their metadata as numbered context blocks, enabling the LLM to produce inline citations like <code>[Source 1: HR Leave Policy §3.2]</code>. The user query is passed verbatim to preserve intent, while output format instructions enforce structured JSON containing the answer text, citation list, confidence score (0-1), and a boolean hallucination flag.</p>
+
+  <h3>Context Window Management</h3>
+  <p>With 128K context windows available in modern LLMs, the pipeline budgets token allocation: 2K for system prompt, up to 8K for retrieved context (approximately 5-8 chunks at 512 tokens each), the user query, and 2K reserved for output. When retrieval returns more chunks than the budget allows, a cross-encoder re-ranker (e.g. <code>ms-marco-MiniLM-L-12</code>) scores chunk-query relevance and selects the top-K within budget. This prevents context dilution where too many marginally relevant chunks reduce answer quality.</p>
+
+  <h3>Citation Grounding</h3>
+  <p>Every factual claim in the response must cite a specific chunk by its source document and section. The prompt instructs the LLM to output <code>"I don't have enough information"</code> when retrieved context doesn't cover the query, rather than fabricating an answer. Post-generation, a citation validator checks that every cited chunk ID exists in the retrieved set and that the cited text actually appears in that chunk.</p>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 4. RAG PROCESS ==================== -->
+<section id="s4">
+  <h2><span class="num">04</span> Retrieval Augmented Generation &mdash; Full Process</h2>
+  <p class="section-desc">The end-to-end RAG process combining hybrid search, re-ranking, augmented generation, and self-evaluation into a unified pipeline.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Complete RAG Pipeline with Hybrid Search</div>
+    <svg viewBox="0 0 1100 620" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="620" fill="#0B1D3A" rx="8"/>
+
+      <!-- Query Understanding -->
+      <rect x="30" y="30" width="180" height="80" rx="6" fill="#162040" stroke="#FD79A8" stroke-width="2"/>
+      <text x="120" y="58" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">USER QUERY</text>
+      <text x="120" y="78" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">"What is MYOB's</text>
+      <text x="120" y="93" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">parental leave?"</text>
+
+      <line x1="210" y1="70" x2="260" y2="70" stroke="#FD79A8" stroke-width="1.5" marker-end="url(#arrow-pink)"/>
+
+      <!-- Query Processing -->
+      <rect x="260" y="20" width="200" height="100" rx="6" fill="#162040" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="360" y="45" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">QUERY PROCESSOR</text>
+      <text x="360" y="67" text-anchor="middle" fill="#fff" font-size="11">Intent Classification</text>
+      <text x="360" y="84" text-anchor="middle" fill="#9AAEC0" font-size="10">Query Expansion (HyDE)</text>
+      <text x="360" y="100" text-anchor="middle" fill="#9AAEC0" font-size="10">Category Detection</text>
+
+      <!-- Dual Retrieval -->
+      <line x1="460" y1="50" x2="530" y2="50" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+      <line x1="460" y1="90" x2="530" y2="150" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="530" y="15" width="200" height="70" rx="6" fill="#162040" stroke="#00B894" stroke-width="2"/>
+      <text x="630" y="38" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">DENSE RETRIEVAL</text>
+      <text x="630" y="57" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Vector Search (ANN)</text>
+      <text x="630" y="73" text-anchor="middle" fill="#9AAEC0" font-size="10">top-20 by cosine sim</text>
+
+      <rect x="530" y="105" width="200" height="70" rx="6" fill="#162040" stroke="#E17055" stroke-width="2"/>
+      <text x="630" y="128" text-anchor="middle" fill="#E17055" font-size="10" font-family="JetBrains Mono">SPARSE RETRIEVAL</text>
+      <text x="630" y="147" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">BM25 Keyword Search</text>
+      <text x="630" y="163" text-anchor="middle" fill="#9AAEC0" font-size="10">top-20 by TF-IDF</text>
+
+      <!-- Merge -->
+      <line x1="730" y1="50" x2="790" y2="100" stroke="#00B894" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+      <line x1="730" y1="140" x2="790" y2="110" stroke="#E17055" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+      <rect x="790" y="70" width="180" height="70" rx="6" fill="#162040" stroke="#FDCB6E" stroke-width="2"/>
+      <text x="880" y="93" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">HYBRID FUSION</text>
+      <text x="880" y="113" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">RRF Merge + Dedup</text>
+      <text x="880" y="128" text-anchor="middle" fill="#9AAEC0" font-size="10">Reciprocal Rank Fusion</text>
+
+      <!-- Re-ranker -->
+      <line x1="880" y1="140" x2="880" y2="190" stroke="#FDCB6E" stroke-width="1.5" marker-end="url(#arrow-yellow)"/>
+
+      <rect x="770" y="190" width="220" height="70" rx="6" fill="#162040" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="880" y="213" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">CROSS-ENCODER RE-RANKER</text>
+      <text x="880" y="233" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">ms-marco-MiniLM-L-12</text>
+      <text x="880" y="248" text-anchor="middle" fill="#9AAEC0" font-size="10">Select top-5 by relevance</text>
+
+      <!-- Metadata Filter -->
+      <rect x="770" y="280" width="220" height="50" rx="6" fill="#162040" stroke="#FD79A8" stroke-width="1.5"/>
+      <text x="880" y="300" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">METADATA FILTER</text>
+      <text x="880" y="318" text-anchor="middle" fill="#9AAEC0" font-size="10">Category + Access + Recency</text>
+      <line x1="880" y1="260" x2="880" y2="280" stroke="#6C5CE7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+      <!-- Generation -->
+      <line x1="770" y1="305" x2="530" y2="380" stroke="#FD79A8" stroke-width="1.5" marker-end="url(#arrow-pink)"/>
+
+      <rect x="310" y="350" width="220" height="80" rx="6" fill="#162040" stroke="#FD79A8" stroke-width="2"/>
+      <text x="420" y="375" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">LLM GENERATION</text>
+      <text x="420" y="397" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Claude Sonnet 4.6</text>
+      <text x="420" y="416" text-anchor="middle" fill="#9AAEC0" font-size="10">Grounded answer with citations</text>
+
+      <!-- Self Eval -->
+      <line x1="530" y1="390" x2="610" y2="390" stroke="#FD79A8" stroke-width="1.5" marker-end="url(#arrow-pink)"/>
+
+      <rect x="610" y="350" width="220" height="80" rx="6" fill="#162040" stroke="#FDCB6E" stroke-width="2"/>
+      <text x="720" y="375" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">LLM-AS-JUDGE</text>
+      <text x="720" y="397" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Self-Evaluation Layer</text>
+      <text x="720" y="416" text-anchor="middle" fill="#9AAEC0" font-size="10">Faithfulness / Relevance / Toxicity</text>
+
+      <!-- Output -->
+      <line x1="720" y1="430" x2="720" y2="475" stroke="#FDCB6E" stroke-width="1.5" marker-end="url(#arrow-yellow)"/>
+
+      <rect x="550" y="475" width="340" height="60" rx="6" fill="#1C2A50" stroke="#00B894" stroke-width="2"/>
+      <text x="720" y="500" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">VALIDATED RESPONSE</text>
+      <text x="720" y="520" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Answer + Citations + Confidence + Eval Scores</text>
+
+      <!-- Logging -->
+      <rect x="30" y="480" width="460" height="55" rx="6" fill="none" stroke="#2A3A60" stroke-dasharray="6,4"/>
+      <text x="260" y="503" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono" letter-spacing="1">OBSERVABILITY &amp; LOGGING</text>
+      <text x="260" y="521" text-anchor="middle" fill="#9AAEC0" font-size="10">LangFuse traces &bull; Latency metrics &bull; Token usage &bull; Retrieval quality scores &bull; User feedback</text>
+
+      <line x1="490" y1="505" x2="550" y2="505" stroke="#2A3A60" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- Fail path -->
+      <rect x="850" y="360" width="120" height="40" rx="4" fill="rgba(225,112,85,.15)" stroke="#E17055"/>
+      <text x="910" y="378" text-anchor="middle" fill="#E17055" font-size="10" font-weight="600">FAIL?</text>
+      <text x="910" y="392" text-anchor="middle" fill="#E17055" font-size="9">Re-retrieve or</text>
+      <line x1="830" y1="385" x2="850" y2="381" stroke="#E17055" stroke-width="1" marker-end="url(#arrow-orange)"/>
+
+      <path d="M910,400 L910,445 L1050,445 L1050,105 L970,105" fill="none" stroke="#E17055" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-orange)"/>
+      <text x="1060" y="280" text-anchor="middle" fill="#E17055" font-size="9" font-family="JetBrains Mono" transform="rotate(90,1060,280)">RETRY LOOP</text>
+    </svg>
+  </div>
+
+  <h3>Hybrid Search Strategy</h3>
+  <p>The hybrid approach combines two complementary retrieval methods. Dense retrieval using vector similarity excels at semantic matching — understanding that "maternity leave" and "parental leave entitlements" are related even without keyword overlap. Sparse BM25 retrieval catches exact-match cases that vectors sometimes miss, particularly for MYOB-specific acronyms, policy numbers, and project codes. Results from both methods are merged using Reciprocal Rank Fusion (RRF), which balances contributions from each without requiring calibrated scores. The fused candidate set is then re-ranked by a cross-encoder model that jointly attends to the query and each candidate, producing a final relevance ordering.</p>
+
+  <h3>Query Understanding Layer</h3>
+  <p>Before retrieval, the query processor performs three operations. Intent classification determines whether the query is factual (policy lookup), analytical (project comparison), or navigational (find a specific document). Query expansion using Hypothetical Document Embedding (HyDE) generates a synthetic answer passage and embeds it, often retrieving more relevant chunks than the raw query embedding. Category detection uses a lightweight classifier to pre-filter the index by document category (HR, Project, Technical), reducing the search space and improving precision.</p>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 5. EXPERIMENT TO PRODUCTION ==================== -->
+<section id="s5">
+  <h2><span class="num">05</span> Experiment-to-Production Pathways</h2>
+  <p class="section-desc">The lifecycle from initial prototyping through evaluation gates to production deployment, including model registry, A/B testing, and rollback mechanisms.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Experiment to Production Pathway</div>
+    <svg viewBox="0 0 1100 480" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="480" fill="#0B1D3A" rx="8"/>
+
+      <!-- Experiment Phase -->
+      <rect x="20" y="50" width="260" height="380" rx="6" fill="none" stroke="#6C5CE7" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="150" y="38" text-anchor="middle" fill="#6C5CE7" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">EXPERIMENT PHASE</text>
+
+      <rect x="40" y="70" width="220" height="55" rx="5" fill="#162040" stroke="#6C5CE7"/>
+      <text x="150" y="92" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Notebook Prototyping</text>
+      <text x="150" y="110" text-anchor="middle" fill="#9AAEC0" font-size="10">Jupyter + LangChain / LlamaIndex</text>
+
+      <line x1="150" y1="125" x2="150" y2="145" stroke="#6C5CE7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+      <rect x="40" y="145" width="220" height="55" rx="5" fill="#162040" stroke="#6C5CE7"/>
+      <text x="150" y="167" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Chunking Experiments</text>
+      <text x="150" y="185" text-anchor="middle" fill="#9AAEC0" font-size="10">Size, Overlap, Strategy tuning</text>
+
+      <line x1="150" y1="200" x2="150" y2="220" stroke="#6C5CE7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+      <rect x="40" y="220" width="220" height="55" rx="5" fill="#162040" stroke="#6C5CE7"/>
+      <text x="150" y="242" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Embedding Comparison</text>
+      <text x="150" y="260" text-anchor="middle" fill="#9AAEC0" font-size="10">OpenAI vs BGE vs Cohere</text>
+
+      <line x1="150" y1="275" x2="150" y2="295" stroke="#6C5CE7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+      <rect x="40" y="295" width="220" height="55" rx="5" fill="#162040" stroke="#6C5CE7"/>
+      <text x="150" y="317" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Prompt Engineering</text>
+      <text x="150" y="335" text-anchor="middle" fill="#9AAEC0" font-size="10">System prompts + Few-shot</text>
+
+      <rect x="40" y="370" width="220" height="45" rx="5" fill="rgba(253,203,110,.1)" stroke="#FDCB6E"/>
+      <text x="150" y="397" text-anchor="middle" fill="#FDCB6E" font-size="11" font-weight="600">MLflow Experiment Tracking</text>
+
+      <!-- Evaluation Gate -->
+      <rect x="310" y="80" width="180" height="320" rx="6" fill="none" stroke="#FDCB6E" stroke-width="2"/>
+      <text x="400" y="68" text-anchor="middle" fill="#FDCB6E" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">EVALUATION GATE</text>
+
+      <line x1="280" y1="200" x2="310" y2="200" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="325" y="100" width="150" height="40" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="400" y="124" text-anchor="middle" fill="#fff" font-size="11">Offline Eval Suite</text>
+
+      <rect x="325" y="155" width="150" height="40" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="400" y="179" text-anchor="middle" fill="#fff" font-size="11">RAGAS Metrics</text>
+
+      <rect x="325" y="210" width="150" height="40" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="400" y="234" text-anchor="middle" fill="#fff" font-size="11">LLM-as-Judge Tests</text>
+
+      <rect x="325" y="265" width="150" height="40" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="400" y="289" text-anchor="middle" fill="#fff" font-size="11">Human Review Panel</text>
+
+      <rect x="325" y="325" width="150" height="55" rx="4" fill="rgba(0,184,148,.15)" stroke="#00B894" stroke-width="2"/>
+      <text x="400" y="348" text-anchor="middle" fill="#00B894" font-size="11" font-weight="700">PASS?</text>
+      <text x="400" y="366" text-anchor="middle" fill="#9AAEC0" font-size="10">All metrics ≥ threshold</text>
+
+      <!-- Staging -->
+      <line x1="490" y1="200" x2="540" y2="200" stroke="#FDCB6E" stroke-width="1.5" marker-end="url(#arrow-yellow)"/>
+
+      <rect x="540" y="80" width="200" height="260" rx="6" fill="none" stroke="#00B894" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="640" y="68" text-anchor="middle" fill="#00B894" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">STAGING</text>
+
+      <rect x="555" y="100" width="170" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="640" y="118" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Shadow Deployment</text>
+      <text x="640" y="135" text-anchor="middle" fill="#9AAEC0" font-size="10">Parallel run, no user impact</text>
+
+      <rect x="555" y="160" width="170" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="640" y="178" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">A/B Testing</text>
+      <text x="640" y="195" text-anchor="middle" fill="#9AAEC0" font-size="10">10% traffic to candidate</text>
+
+      <rect x="555" y="220" width="170" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="640" y="238" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Integration Tests</text>
+      <text x="640" y="255" text-anchor="middle" fill="#9AAEC0" font-size="10">API contracts + latency</text>
+
+      <rect x="555" y="280" width="170" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="640" y="298" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Load Testing</text>
+      <text x="640" y="315" text-anchor="middle" fill="#9AAEC0" font-size="10">Concurrent user simulation</text>
+
+      <!-- Production -->
+      <line x1="740" y1="200" x2="790" y2="200" stroke="#00B894" stroke-width="1.5" marker-end="url(#arrow-teal)"/>
+
+      <rect x="790" y="50" width="280" height="380" rx="6" fill="none" stroke="#FD79A8" stroke-width="1.5"/>
+      <text x="930" y="38" text-anchor="middle" fill="#FD79A8" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">PRODUCTION</text>
+
+      <rect x="810" y="70" width="240" height="50" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="930" y="90" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Blue-Green Deployment</text>
+      <text x="930" y="108" text-anchor="middle" fill="#9AAEC0" font-size="10">Zero-downtime swap</text>
+
+      <rect x="810" y="135" width="240" height="50" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="930" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Model Registry</text>
+      <text x="930" y="173" text-anchor="middle" fill="#9AAEC0" font-size="10">Versioned configs, prompts, weights</text>
+
+      <rect x="810" y="200" width="240" height="50" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="930" y="220" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Feature Flags</text>
+      <text x="930" y="238" text-anchor="middle" fill="#9AAEC0" font-size="10">LaunchDarkly / Unleash</text>
+
+      <rect x="810" y="265" width="240" height="50" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="930" y="285" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Auto-Rollback</text>
+      <text x="930" y="303" text-anchor="middle" fill="#9AAEC0" font-size="10">If eval &lt; threshold for 30 min</text>
+
+      <rect x="810" y="330" width="240" height="50" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="930" y="350" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Continuous Monitoring</text>
+      <text x="930" y="368" text-anchor="middle" fill="#9AAEC0" font-size="10">LangFuse + Datadog + PagerDuty</text>
+
+      <rect x="810" y="395" width="240" height="28" rx="4" fill="rgba(225,112,85,.1)" stroke="#E17055" stroke-dasharray="4,3"/>
+      <text x="930" y="414" text-anchor="middle" fill="#E17055" font-size="10">Drift detection &rarr; triggers re-experiment</text>
+
+      <!-- Feedback arrow -->
+      <path d="M930,423 L930,460 L150,460 L150,415" fill="none" stroke="#E17055" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-orange)"/>
+      <text x="540" y="455" text-anchor="middle" fill="#E17055" font-size="10" font-family="JetBrains Mono">CONTINUOUS IMPROVEMENT LOOP</text>
+    </svg>
+  </div>
+
+  <h3>Experiment Phase</h3>
+  <p>Data scientists and AI engineers work in Jupyter notebooks using LangChain or LlamaIndex as the orchestration framework. Each experiment varies one dimension at a time: chunking strategy (fixed-size vs semantic vs document-structure-aware), embedding model (OpenAI ada-3 vs BGE-M3 vs Cohere embed-v3), retrieval method (dense-only vs hybrid), re-ranker inclusion, and prompt template. All experiments are tracked in MLflow with parameters, metrics (retrieval recall@K, answer faithfulness, latency), and artifacts (prompt templates, config files).</p>
+
+  <h3>Evaluation Gate</h3>
+  <p>Before any configuration advances to staging, it must pass an automated evaluation suite. This includes RAGAS metrics (faithfulness, answer relevance, context precision, context recall), LLM-as-Judge scoring on a curated test set of 200+ question-answer pairs across all three document categories, and a human review panel of 3 domain experts who score a random sample of 50 responses. The gate requires: faithfulness ≥ 0.85, answer relevance ≥ 0.80, context precision ≥ 0.75, and human approval ≥ 90%.</p>
+
+  <h3>Staging and Production</h3>
+  <p>Staging deploys the candidate pipeline alongside the current production version (shadow mode). A/B testing routes 10% of live traffic to the candidate, comparing response quality, latency, and user satisfaction. Production uses blue-green deployment with feature flags for instant rollback. An auto-rollback trigger fires if evaluation scores drop below thresholds for 30 consecutive minutes. Drift detection monitors embedding distribution shift and document corpus changes, triggering re-experimentation when significant drift is detected.</p>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 6. PRODUCTION SCENARIO ==================== -->
+<section id="s6">
+  <h2><span class="num">06</span> Production Scenario &mdash; End-to-End User Query</h2>
+  <p class="section-desc">A detailed walkthrough of a production query from user input to evaluated response, showing every system interaction.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Production Query Lifecycle</div>
+    <svg viewBox="0 0 1100 560" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="560" fill="#0B1D3A" rx="8"/>
+
+      <!-- Timeline line -->
+      <line x1="80" y1="60" x2="80" y2="520" stroke="#2A3A60" stroke-width="2"/>
+
+      <!-- Step 1 -->
+      <circle cx="80" cy="60" r="14" fill="#FD79A8" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="65" text-anchor="middle" fill="#0B1D3A" font-size="10" font-weight="700">1</text>
+      <rect x="110" y="35" width="320" height="50" rx="5" fill="#162040" stroke="#FD79A8" stroke-width="1.5"/>
+      <text x="130" y="55" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">USER INPUT</text>
+      <text x="130" y="73" fill="#fff" font-size="11">"What is the parental leave policy?" &rarr; API Gateway</text>
+
+      <rect x="480" y="35" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="55" fill="#9AAEC0" font-size="10">Auth check &bull; Rate limit &bull; Input sanitise</text>
+      <text x="500" y="73" fill="#9AAEC0" font-size="10">Session ID &bull; Trace ID generated</text>
+
+      <!-- Step 2 -->
+      <circle cx="80" cy="130" r="14" fill="#6C5CE7" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="135" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">2</text>
+      <rect x="110" y="105" width="320" height="50" rx="5" fill="#162040" stroke="#6C5CE7" stroke-width="1.5"/>
+      <text x="130" y="125" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">QUERY EMBEDDING</text>
+      <text x="130" y="143" fill="#fff" font-size="11">text-embedding-3-large &rarr; 3072-dim vector</text>
+
+      <rect x="480" y="105" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="125" fill="#9AAEC0" font-size="10">HyDE expansion (optional)</text>
+      <text x="500" y="143" fill="#9AAEC0" font-size="10">Latency target: &lt; 100ms</text>
+
+      <!-- Step 3 -->
+      <circle cx="80" cy="200" r="14" fill="#00B894" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="205" text-anchor="middle" fill="#0B1D3A" font-size="10" font-weight="700">3</text>
+      <rect x="110" y="175" width="320" height="50" rx="5" fill="#162040" stroke="#00B894" stroke-width="1.5"/>
+      <text x="130" y="195" fill="#00B894" font-size="10" font-family="JetBrains Mono">HYBRID RETRIEVAL</text>
+      <text x="130" y="213" fill="#fff" font-size="11">Vector (top-20) + BM25 (top-20) &rarr; RRF merge</text>
+
+      <rect x="480" y="175" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="195" fill="#9AAEC0" font-size="10">Metadata filter: category=HR</text>
+      <text x="500" y="213" fill="#9AAEC0" font-size="10">Latency target: &lt; 200ms</text>
+
+      <!-- Step 4 -->
+      <circle cx="80" cy="270" r="14" fill="#FDCB6E" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="275" text-anchor="middle" fill="#0B1D3A" font-size="10" font-weight="700">4</text>
+      <rect x="110" y="245" width="320" height="50" rx="5" fill="#162040" stroke="#FDCB6E" stroke-width="1.5"/>
+      <text x="130" y="265" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">RE-RANKING</text>
+      <text x="130" y="283" fill="#fff" font-size="11">Cross-encoder scores 30 candidates &rarr; top-5</text>
+
+      <rect x="480" y="245" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="265" fill="#9AAEC0" font-size="10">Relevance threshold: 0.75</text>
+      <text x="500" y="283" fill="#9AAEC0" font-size="10">Latency target: &lt; 150ms</text>
+
+      <!-- Step 5 -->
+      <circle cx="80" cy="340" r="14" fill="#FD79A8" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="345" text-anchor="middle" fill="#0B1D3A" font-size="10" font-weight="700">5</text>
+      <rect x="110" y="315" width="320" height="50" rx="5" fill="#162040" stroke="#FD79A8" stroke-width="1.5"/>
+      <text x="130" y="335" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">LLM GENERATION</text>
+      <text x="130" y="353" fill="#fff" font-size="11">Prompt assembly &rarr; Claude Sonnet &rarr; Streaming</text>
+
+      <rect x="480" y="315" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="335" fill="#9AAEC0" font-size="10">Temp: 0.1 &bull; Max tokens: 2048</text>
+      <text x="500" y="353" fill="#9AAEC0" font-size="10">Latency target: &lt; 3s TTFT</text>
+
+      <!-- Step 6 -->
+      <circle cx="80" cy="410" r="14" fill="#E17055" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="415" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">6</text>
+      <rect x="110" y="385" width="320" height="50" rx="5" fill="#162040" stroke="#E17055" stroke-width="1.5"/>
+      <text x="130" y="405" fill="#E17055" font-size="10" font-family="JetBrains Mono">SELF-EVALUATION</text>
+      <text x="130" y="423" fill="#fff" font-size="11">LLM-as-Judge: faithfulness, relevance, safety</text>
+
+      <rect x="480" y="385" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="405" fill="#9AAEC0" font-size="10">Async eval (non-blocking)</text>
+      <text x="500" y="423" fill="#9AAEC0" font-size="10">Low-score &rarr; flag for human review</text>
+
+      <!-- Step 7 -->
+      <circle cx="80" cy="480" r="14" fill="#00B894" stroke="#0B1D3A" stroke-width="3"/>
+      <text x="80" y="485" text-anchor="middle" fill="#0B1D3A" font-size="10" font-weight="700">7</text>
+      <rect x="110" y="455" width="320" height="50" rx="5" fill="#162040" stroke="#00B894" stroke-width="1.5"/>
+      <text x="130" y="475" fill="#00B894" font-size="10" font-family="JetBrains Mono">RESPONSE + LOGGING</text>
+      <text x="130" y="493" fill="#fff" font-size="11">Return answer &bull; Log trace to LangFuse &bull; Feedback</text>
+
+      <rect x="480" y="455" width="250" height="50" rx="5" fill="#1C2A50" stroke="#2A3A60"/>
+      <text x="500" y="475" fill="#9AAEC0" font-size="10">Total E2E latency: &lt; 4s (P95)</text>
+      <text x="500" y="493" fill="#9AAEC0" font-size="10">User thumbs-up/down captured</text>
+
+      <!-- Timings -->
+      <rect x="800" y="60" width="270" height="460" rx="6" fill="none" stroke="#2A3A60" stroke-dasharray="6,4"/>
+      <text x="935" y="50" text-anchor="middle" fill="#2A3A60" font-size="10" font-family="JetBrains Mono" letter-spacing="1">PERFORMANCE BUDGET</text>
+
+      <text x="820" y="90" fill="#9AAEC0" font-size="11">API Gateway + Auth</text>
+      <text x="1040" y="90" text-anchor="end" fill="#FD79A8" font-size="11" font-family="JetBrains Mono">&lt;50ms</text>
+
+      <text x="820" y="155" fill="#9AAEC0" font-size="11">Embedding</text>
+      <text x="1040" y="155" text-anchor="end" fill="#6C5CE7" font-size="11" font-family="JetBrains Mono">&lt;100ms</text>
+
+      <text x="820" y="220" fill="#9AAEC0" font-size="11">Hybrid Retrieval</text>
+      <text x="1040" y="220" text-anchor="end" fill="#00B894" font-size="11" font-family="JetBrains Mono">&lt;200ms</text>
+
+      <text x="820" y="285" fill="#9AAEC0" font-size="11">Re-ranking</text>
+      <text x="1040" y="285" text-anchor="end" fill="#FDCB6E" font-size="11" font-family="JetBrains Mono">&lt;150ms</text>
+
+      <text x="820" y="350" fill="#9AAEC0" font-size="11">LLM (TTFT)</text>
+      <text x="1040" y="350" text-anchor="end" fill="#FD79A8" font-size="11" font-family="JetBrains Mono">&lt;3s</text>
+
+      <text x="820" y="415" fill="#9AAEC0" font-size="11">Self-Eval (async)</text>
+      <text x="1040" y="415" text-anchor="end" fill="#E17055" font-size="11" font-family="JetBrains Mono">~2s</text>
+
+      <line x1="820" y1="440" x2="1040" y2="440" stroke="#2A3A60"/>
+      <text x="820" y="465" fill="#fff" font-size="12" font-weight="700">Total E2E (P95)</text>
+      <text x="1040" y="465" text-anchor="end" fill="#00B894" font-size="13" font-weight="700" font-family="JetBrains Mono">&lt;4s</text>
+
+      <text x="820" y="495" fill="#9AAEC0" font-size="10">Token budget per query: ~4K input, ~2K output</text>
+    </svg>
+  </div>
+
+  <h3>Production Query Walkthrough</h3>
+  <p>A staff member types "What is the parental leave policy?" into the MYOB Knowledge Assistant. The API gateway authenticates the session (SSO via Okta), applies rate limiting (60 requests/minute per user), and sanitises the input (stripping injection attempts). A trace ID is generated for end-to-end observability in LangFuse.</p>
+
+  <p>The query is embedded into a 3072-dimensional vector using <code>text-embedding-3-large</code>. Simultaneously, the query processor classifies the intent as "factual/policy-lookup" and the category as "HR", which narrows the retrieval scope. An optional HyDE step generates a hypothetical answer passage and embeds it for improved semantic matching.</p>
+
+  <p>Hybrid retrieval fires two parallel searches: vector similarity search returns the top-20 nearest chunks from the HR partition of the vector index, while BM25 keyword search returns the top-20 from the Elasticsearch HR index. Reciprocal Rank Fusion merges and deduplicates these into a single ranked list. The cross-encoder re-ranker then scores each candidate against the original query, selecting the top-5 chunks that exceed the 0.75 relevance threshold.</p>
+
+  <p>The prompt constructor assembles the system prompt, the 5 retrieved chunks (with metadata), the user query, and output format instructions into a single request to Claude Sonnet. The response is streamed back to the user with inline citations referencing specific policy documents and sections. Asynchronously, the LLM-as-Judge evaluates the response for faithfulness (does it contradict the retrieved context?), relevance (does it address the user's question?), and safety (no harmful content). Scores below threshold trigger a human review flag. The entire interaction is logged to LangFuse with latency breakdowns, token counts, and eval scores.</p>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 7. EVALUATION & MONITORING ==================== -->
+<section id="s7">
+  <h2><span class="num">07</span> Evaluation &amp; Monitoring</h2>
+  <p class="section-desc">The self-evaluating architecture that ensures continuous quality through LLM-as-Judge, automated metrics, and human-in-the-loop feedback.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Evaluation &amp; Monitoring System</div>
+    <svg viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="520" fill="#0B1D3A" rx="8"/>
+
+      <!-- LLM-as-Judge Block -->
+      <rect x="30" y="30" width="320" height="280" rx="6" fill="none" stroke="#FDCB6E" stroke-width="2"/>
+      <text x="190" y="20" text-anchor="middle" fill="#FDCB6E" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">LLM-AS-JUDGE ENGINE</text>
+
+      <rect x="50" y="50" width="280" height="45" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="190" y="68" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">FAITHFULNESS</text>
+      <text x="190" y="86" text-anchor="middle" fill="#9AAEC0" font-size="10">Does the answer match retrieved context?</text>
+
+      <rect x="50" y="105" width="280" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="190" y="123" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">ANSWER RELEVANCE</text>
+      <text x="190" y="141" text-anchor="middle" fill="#9AAEC0" font-size="10">Does it address the user's question?</text>
+
+      <rect x="50" y="160" width="280" height="45" rx="4" fill="#162040" stroke="#6C5CE7"/>
+      <text x="190" y="178" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">CONTEXT PRECISION</text>
+      <text x="190" y="196" text-anchor="middle" fill="#9AAEC0" font-size="10">Are retrieved chunks actually relevant?</text>
+
+      <rect x="50" y="215" width="280" height="45" rx="4" fill="#162040" stroke="#E17055"/>
+      <text x="190" y="233" text-anchor="middle" fill="#E17055" font-size="10" font-family="JetBrains Mono">HALLUCINATION DETECTION</text>
+      <text x="190" y="251" text-anchor="middle" fill="#9AAEC0" font-size="10">Claims not grounded in context?</text>
+
+      <rect x="50" y="270" width="280" height="30" rx="4" fill="rgba(253,121,168,.1)" stroke="#FD79A8"/>
+      <text x="190" y="290" text-anchor="middle" fill="#FD79A8" font-size="10">Toxicity + PII + Bias checks</text>
+
+      <!-- Automated Metrics -->
+      <rect x="390" y="30" width="320" height="280" rx="6" fill="none" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="550" y="20" text-anchor="middle" fill="#6C5CE7" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">AUTOMATED METRICS</text>
+
+      <rect x="410" y="50" width="280" height="45" rx="4" fill="#162040" stroke="#6C5CE7"/>
+      <text x="550" y="68" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">RAGAS FRAMEWORK</text>
+      <text x="550" y="86" text-anchor="middle" fill="#9AAEC0" font-size="10">Faithfulness, Relevance, Precision, Recall</text>
+
+      <rect x="410" y="105" width="280" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="550" y="123" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">RETRIEVAL METRICS</text>
+      <text x="550" y="141" text-anchor="middle" fill="#9AAEC0" font-size="10">MRR, NDCG@5, Recall@10, Precision@5</text>
+
+      <rect x="410" y="160" width="280" height="45" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="550" y="178" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">LATENCY &amp; THROUGHPUT</text>
+      <text x="550" y="196" text-anchor="middle" fill="#9AAEC0" font-size="10">P50/P95/P99 per stage, RPS capacity</text>
+
+      <rect x="410" y="215" width="280" height="45" rx="4" fill="#162040" stroke="#E17055"/>
+      <text x="550" y="233" text-anchor="middle" fill="#E17055" font-size="10" font-family="JetBrains Mono">COST TRACKING</text>
+      <text x="550" y="251" text-anchor="middle" fill="#9AAEC0" font-size="10">Token usage, API costs per query</text>
+
+      <rect x="410" y="270" width="280" height="30" rx="4" fill="rgba(253,121,168,.1)" stroke="#FD79A8"/>
+      <text x="550" y="290" text-anchor="middle" fill="#FD79A8" font-size="10">Embedding drift detection (cosine shift)</text>
+
+      <!-- Human-in-the-Loop -->
+      <rect x="750" y="30" width="320" height="280" rx="6" fill="none" stroke="#00B894" stroke-width="2"/>
+      <text x="910" y="20" text-anchor="middle" fill="#00B894" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">HUMAN-IN-THE-LOOP</text>
+
+      <rect x="770" y="50" width="280" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="910" y="68" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">USER FEEDBACK</text>
+      <text x="910" y="86" text-anchor="middle" fill="#9AAEC0" font-size="10">Thumbs up/down, free-text comments</text>
+
+      <rect x="770" y="105" width="280" height="45" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="910" y="123" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">EXPERT REVIEW QUEUE</text>
+      <text x="910" y="141" text-anchor="middle" fill="#9AAEC0" font-size="10">Low-score responses flagged for SMEs</text>
+
+      <rect x="770" y="160" width="280" height="45" rx="4" fill="#162040" stroke="#6C5CE7"/>
+      <text x="910" y="178" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono">GOLDEN TEST SET</text>
+      <text x="910" y="196" text-anchor="middle" fill="#9AAEC0" font-size="10">200+ curated Q&amp;A pairs, updated monthly</text>
+
+      <rect x="770" y="215" width="280" height="45" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="910" y="233" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">ANNOTATION TOOL</text>
+      <text x="910" y="251" text-anchor="middle" fill="#9AAEC0" font-size="10">Argilla for labelling + corrections</text>
+
+      <rect x="770" y="270" width="280" height="30" rx="4" fill="rgba(253,203,110,.1)" stroke="#FDCB6E"/>
+      <text x="910" y="290" text-anchor="middle" fill="#FDCB6E" font-size="10">Weekly review meeting with domain owners</text>
+
+      <!-- Dashboard -->
+      <rect x="30" y="350" width="1040" height="140" rx="6" fill="#162040" stroke="#FD79A8" stroke-width="1.5"/>
+      <text x="550" y="340" text-anchor="middle" fill="#FD79A8" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">OBSERVABILITY DASHBOARD</text>
+
+      <rect x="50" y="370" width="190" height="55" rx="4" fill="#1C2A50" stroke="#00B894"/>
+      <text x="145" y="392" text-anchor="middle" fill="#00B894" font-size="11" font-weight="600">LangFuse</text>
+      <text x="145" y="410" text-anchor="middle" fill="#9AAEC0" font-size="10">Traces, spans, eval scores</text>
+
+      <rect x="260" y="370" width="190" height="55" rx="4" fill="#1C2A50" stroke="#6C5CE7"/>
+      <text x="355" y="392" text-anchor="middle" fill="#6C5CE7" font-size="11" font-weight="600">Grafana / Datadog</text>
+      <text x="355" y="410" text-anchor="middle" fill="#9AAEC0" font-size="10">Infra metrics, latency, errors</text>
+
+      <rect x="470" y="370" width="190" height="55" rx="4" fill="#1C2A50" stroke="#FDCB6E"/>
+      <text x="565" y="392" text-anchor="middle" fill="#FDCB6E" font-size="11" font-weight="600">Custom Analytics</text>
+      <text x="565" y="410" text-anchor="middle" fill="#9AAEC0" font-size="10">Query patterns, coverage gaps</text>
+
+      <rect x="680" y="370" width="190" height="55" rx="4" fill="#1C2A50" stroke="#E17055"/>
+      <text x="775" y="392" text-anchor="middle" fill="#E17055" font-size="11" font-weight="600">PagerDuty Alerts</text>
+      <text x="775" y="410" text-anchor="middle" fill="#9AAEC0" font-size="10">Threshold breaches &rarr; on-call</text>
+
+      <rect x="890" y="370" width="160" height="55" rx="4" fill="#1C2A50" stroke="#FD79A8"/>
+      <text x="970" y="392" text-anchor="middle" fill="#FD79A8" font-size="11" font-weight="600">Weekly Report</text>
+      <text x="970" y="410" text-anchor="middle" fill="#9AAEC0" font-size="10">Auto-generated summary</text>
+
+      <!-- Arrows from 3 blocks to dashboard -->
+      <line x1="190" y1="310" x2="190" y2="350" stroke="#FDCB6E" stroke-width="1.2" marker-end="url(#arrow-yellow)"/>
+      <line x1="550" y1="310" x2="550" y2="350" stroke="#6C5CE7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+      <line x1="910" y1="310" x2="910" y2="350" stroke="#00B894" stroke-width="1.2" marker-end="url(#arrow-teal)"/>
+
+      <!-- Alert thresholds -->
+      <rect x="50" y="440" width="1000" height="40" rx="4" fill="rgba(225,112,85,.08)" stroke="#E17055" stroke-dasharray="5,4"/>
+      <text x="550" y="465" text-anchor="middle" fill="#E17055" font-size="11">ALERT THRESHOLDS: Faithfulness &lt; 0.85 | Relevance &lt; 0.80 | P95 Latency &gt; 5s | Error Rate &gt; 2% | Cost/query &gt; $0.15</text>
+    </svg>
+  </div>
+
+  <h3>LLM-as-Judge Implementation</h3>
+  <p>The self-evaluation layer runs asynchronously after each response is generated, using a separate LLM call (typically a smaller, faster model like Claude Haiku) with a structured evaluation prompt. The judge receives the original query, the retrieved chunks, and the generated response, then scores each dimension on a 1-5 scale with written rationale. Scores are normalised to 0-1 and logged to LangFuse. Responses scoring below 0.7 on any dimension are routed to a human review queue in Argilla, where domain experts can correct the response and add it to the golden test set, creating a continuous improvement flywheel.</p>
+
+  <h3>Monitoring Strategy</h3>
+  <p>Three monitoring tiers operate simultaneously. Real-time monitoring (LangFuse traces) captures every query with latency breakdowns per pipeline stage, token counts, retrieval scores, and eval results. Infrastructure monitoring (Datadog) tracks API latency percentiles, error rates, throughput, memory usage, and vector index health. Business monitoring (custom dashboards) analyses query patterns by category, identifies coverage gaps (frequent queries with low retrieval scores), and tracks user satisfaction trends. PagerDuty alerts fire when any metric crosses its threshold for 5+ consecutive minutes, routing to the on-call AI engineer.</p>
+
+  <div class="callout warn">
+    <strong>Drift Detection:</strong> A weekly job compares the embedding distribution of new documents against the existing index. If the centroid shift exceeds a configurable threshold (default: 0.15 cosine distance), it triggers a re-indexing alert and flags the document category for review. This catches cases where document language or structure has changed significantly, degrading retrieval quality.
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 8. HR POLICY SOLUTION ==================== -->
+<section id="s8">
+  <h2><span class="num">08</span> Business Solution: HR Policy Access</h2>
+  <p class="section-desc">Addressing Problem 1 — how staff can easily access HR policies through natural language queries with authoritative, cited answers.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; HR Policy Assistant</div>
+    <svg viewBox="0 0 1100 400" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="400" fill="#0B1D3A" rx="8"/>
+
+      <!-- User -->
+      <rect x="30" y="150" width="150" height="100" rx="6" fill="#162040" stroke="#FD79A8" stroke-width="2"/>
+      <text x="105" y="185" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">MYOB STAFF</text>
+      <text x="105" y="210" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Slack / Teams /</text>
+      <text x="105" y="227" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Web Portal</text>
+
+      <line x1="180" y1="200" x2="230" y2="200" stroke="#FD79A8" stroke-width="1.5" marker-end="url(#arrow-pink)"/>
+
+      <!-- HR RAG Agent -->
+      <rect x="230" y="50" width="280" height="300" rx="6" fill="none" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="370" y="38" text-anchor="middle" fill="#6C5CE7" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">HR POLICY AGENT</text>
+
+      <rect x="250" y="70" width="240" height="40" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="370" y="95" text-anchor="middle" fill="#fff" font-size="11">Intent Router (policy / leave / benefits)</text>
+
+      <rect x="250" y="125" width="240" height="40" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="370" y="150" text-anchor="middle" fill="#fff" font-size="11">HR-Scoped Hybrid Retrieval</text>
+
+      <rect x="250" y="180" width="240" height="40" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="370" y="205" text-anchor="middle" fill="#fff" font-size="11">Policy-Aware Prompt Template</text>
+
+      <rect x="250" y="235" width="240" height="40" rx="4" fill="#162040" stroke="#6C5CE7"/>
+      <text x="370" y="260" text-anchor="middle" fill="#fff" font-size="11">Citation &amp; Version Validator</text>
+
+      <rect x="250" y="290" width="240" height="40" rx="4" fill="#162040" stroke="#E17055"/>
+      <text x="370" y="315" text-anchor="middle" fill="#fff" font-size="11">Escalation to HR Team</text>
+
+      <!-- HR Knowledge Base -->
+      <rect x="570" y="70" width="220" height="260" rx="6" fill="none" stroke="#00B894" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="680" y="58" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono" letter-spacing="1">HR KNOWLEDGE BASE</text>
+
+      <rect x="585" y="90" width="190" height="35" rx="3" fill="#1C2A50"/>
+      <text x="680" y="113" text-anchor="middle" fill="#fff" font-size="10">Leave Policies (Annual, Sick, Parental)</text>
+      <rect x="585" y="135" width="190" height="35" rx="3" fill="#1C2A50"/>
+      <text x="680" y="158" text-anchor="middle" fill="#fff" font-size="10">Benefits &amp; Compensation</text>
+      <rect x="585" y="180" width="190" height="35" rx="3" fill="#1C2A50"/>
+      <text x="680" y="203" text-anchor="middle" fill="#fff" font-size="10">Code of Conduct &amp; Ethics</text>
+      <rect x="585" y="225" width="190" height="35" rx="3" fill="#1C2A50"/>
+      <text x="680" y="248" text-anchor="middle" fill="#fff" font-size="10">WHS &amp; Workplace Safety</text>
+      <rect x="585" y="270" width="190" height="35" rx="3" fill="#1C2A50"/>
+      <text x="680" y="293" text-anchor="middle" fill="#fff" font-size="10">Onboarding &amp; Training</text>
+
+      <line x1="510" y1="145" x2="570" y2="145" stroke="#00B894" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <line x1="510" y1="200" x2="570" y2="200" stroke="#00B894" stroke-width="1.2" stroke-dasharray="4,3"/>
+
+      <!-- Response -->
+      <rect x="850" y="100" width="220" height="200" rx="6" fill="#1C2A50" stroke="#FDCB6E" stroke-width="1.5"/>
+      <text x="960" y="125" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">RESPONSE FORMAT</text>
+
+      <text x="870" y="155" fill="#fff" font-size="11" font-weight="600">Answer</text>
+      <text x="870" y="175" fill="#9AAEC0" font-size="10">Grounded in HR policy text</text>
+
+      <text x="870" y="200" fill="#fff" font-size="11" font-weight="600">Citations</text>
+      <text x="870" y="220" fill="#9AAEC0" font-size="10">[Policy Name, Section, Version]</text>
+
+      <text x="870" y="245" fill="#fff" font-size="11" font-weight="600">Last Updated</text>
+      <text x="870" y="265" fill="#9AAEC0" font-size="10">Document freshness indicator</text>
+
+      <text x="870" y="288" fill="#E17055" font-size="10">Disclaimer: Consult HR for complex cases</text>
+
+      <line x1="790" y1="200" x2="850" y2="200" stroke="#FDCB6E" stroke-width="1.2" marker-end="url(#arrow-yellow)"/>
+    </svg>
+  </div>
+
+  <h3>How It Solves the Problem</h3>
+  <p>Staff currently waste 15-20 minutes searching across multiple systems for HR policy information, and frequently reference outdated versions. The HR Policy Assistant provides instant, accurate answers via channels staff already use (Slack, Teams, web portal). Every response cites the specific policy document, section number, and version, so staff can verify the source. The system restricts its answers strictly to content found in the HR knowledge base — when a question falls outside its scope, it escalates directly to the HR team with the query context, so the employee still gets help without the assistant fabricating an answer.</p>
+
+  <h3>Key Design Decisions</h3>
+  <p>The HR agent uses a specialised system prompt that emphasises precision over creativity (temperature 0.0), mandatory citation of policy sections, and explicit version-date disclosure. A version validator cross-references the cited document version against the latest version in the document store, flagging if the retrieved chunk comes from a superseded document. The intent router distinguishes between different HR domains (leave, benefits, conduct, WHS) and applies category-specific metadata filters to improve retrieval precision. For sensitive topics (disciplinary procedures, termination, grievances), the system immediately provides a brief overview and recommends speaking with HR directly, reducing liability risk.</p>
+
+  <div class="card-grid">
+    <div class="card teal">
+      <h4>Multi-Channel Deployment</h4>
+      <p>Slack bot integration (slash command + conversational), Microsoft Teams app, and a dedicated web portal. All channels share the same backend RAG pipeline, ensuring consistent answers regardless of access point.</p>
+    </div>
+    <div class="card orange">
+      <h4>Confidentiality Controls</h4>
+      <p>Role-based access filtering ensures managers see management-level policies (e.g. performance management procedures) while all-staff queries return general policies. Implemented via metadata filters on <code>confidentiality_level</code> field mapped to the user's role from Okta.</p>
+    </div>
+    <div class="card pink">
+      <h4>Freshness Guarantee</h4>
+      <p>HR documents are re-ingested within 1 hour of any update (webhook from Confluence/SharePoint). Stale responses (citing documents older than 90 days) trigger a warning badge and automatically notify the HR content owner to review.</p>
+    </div>
+    <div class="card yellow">
+      <h4>Analytics for HR Team</h4>
+      <p>Dashboard showing top-queried topics, unanswered queries (coverage gaps), query volume trends, and user satisfaction. HR can identify which policies need clearer documentation based on confusion patterns.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 9. PROJECT PRIORITISATION ==================== -->
+<section id="s9">
+  <h2><span class="num">09</span> Business Solution: Project Prioritisation Engine</h2>
+  <p class="section-desc">Addressing Problem 2 — using RAG and LLM to summarise and rank the top 10 high-priority projects for technical leadership, evaluated across risk, cost, criticality with detailed trade-off analysis.</p>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Architecture &mdash; Project Prioritisation Engine</div>
+    <svg viewBox="0 0 1100 560" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+      <rect width="1100" height="560" fill="#0B1D3A" rx="8"/>
+
+      <!-- Data Ingestion -->
+      <rect x="20" y="30" width="200" height="220" rx="6" fill="none" stroke="#6C5CE7" stroke-dasharray="6,4"/>
+      <text x="120" y="20" text-anchor="middle" fill="#6C5CE7" font-size="10" font-family="JetBrains Mono" letter-spacing="1">PROJECT DATA SOURCES</text>
+
+      <rect x="35" y="50" width="170" height="35" rx="3" fill="#1C2A50" stroke="#6C5CE7"/>
+      <text x="120" y="73" text-anchor="middle" fill="#fff" font-size="10">Confluence Project Pages</text>
+      <rect x="35" y="95" width="170" height="35" rx="3" fill="#1C2A50" stroke="#00B894"/>
+      <text x="120" y="118" text-anchor="middle" fill="#fff" font-size="10">Jira Epics &amp; Stories</text>
+      <rect x="35" y="140" width="170" height="35" rx="3" fill="#1C2A50" stroke="#E17055"/>
+      <text x="120" y="163" text-anchor="middle" fill="#fff" font-size="10">Risk Registers</text>
+      <rect x="35" y="185" width="170" height="35" rx="3" fill="#1C2A50" stroke="#FDCB6E"/>
+      <text x="120" y="208" text-anchor="middle" fill="#fff" font-size="10">Budget / Cost Estimates</text>
+
+      <!-- Scoring Engine -->
+      <line x1="220" y1="140" x2="270" y2="140" stroke="#6C5CE7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+      <rect x="270" y="30" width="260" height="260" rx="6" fill="none" stroke="#FDCB6E" stroke-width="2"/>
+      <text x="400" y="20" text-anchor="middle" fill="#FDCB6E" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">MULTI-CRITERIA SCORING ENGINE</text>
+
+      <rect x="285" y="50" width="230" height="45" rx="4" fill="#162040" stroke="#E17055"/>
+      <text x="400" y="68" text-anchor="middle" fill="#E17055" font-size="10" font-family="JetBrains Mono">RISK SCORE (weight: 0.30)</text>
+      <text x="400" y="86" text-anchor="middle" fill="#9AAEC0" font-size="9">Technical risk, dependency risk, team capacity</text>
+
+      <rect x="285" y="105" width="230" height="45" rx="4" fill="#162040" stroke="#FDCB6E"/>
+      <text x="400" y="123" text-anchor="middle" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">COST SCORE (weight: 0.20)</text>
+      <text x="400" y="141" text-anchor="middle" fill="#9AAEC0" font-size="9">Budget, resource allocation, ROI projection</text>
+
+      <rect x="285" y="160" width="230" height="45" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="400" y="178" text-anchor="middle" fill="#FD79A8" font-size="10" font-family="JetBrains Mono">CRITICALITY (weight: 0.35)</text>
+      <text x="400" y="196" text-anchor="middle" fill="#9AAEC0" font-size="9">Business impact, compliance, revenue effect</text>
+
+      <rect x="285" y="215" width="230" height="45" rx="4" fill="#162040" stroke="#00B894"/>
+      <text x="400" y="233" text-anchor="middle" fill="#00B894" font-size="10" font-family="JetBrains Mono">STRATEGIC ALIGN (weight: 0.15)</text>
+      <text x="400" y="251" text-anchor="middle" fill="#9AAEC0" font-size="9">OKR alignment, exec priority, market timing</text>
+
+      <!-- LLM Analysis -->
+      <line x1="530" y1="160" x2="580" y2="160" stroke="#FDCB6E" stroke-width="1.5" marker-end="url(#arrow-yellow)"/>
+
+      <rect x="580" y="30" width="240" height="260" rx="6" fill="none" stroke="#FD79A8" stroke-width="2"/>
+      <text x="700" y="20" text-anchor="middle" fill="#FD79A8" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">LLM ANALYSIS LAYER</text>
+
+      <rect x="595" y="50" width="210" height="40" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="700" y="75" text-anchor="middle" fill="#fff" font-size="10">Project Summarisation (per project)</text>
+
+      <rect x="595" y="100" width="210" height="40" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="700" y="125" text-anchor="middle" fill="#fff" font-size="10">Cross-Project Dependency Mapping</text>
+
+      <rect x="595" y="150" width="210" height="40" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="700" y="175" text-anchor="middle" fill="#fff" font-size="10">Trade-off Analysis Generation</text>
+
+      <rect x="595" y="200" width="210" height="40" rx="4" fill="#162040" stroke="#FD79A8"/>
+      <text x="700" y="225" text-anchor="middle" fill="#fff" font-size="10">Risk Narrative Explanation</text>
+
+      <rect x="595" y="250" width="210" height="30" rx="4" fill="rgba(0,184,148,.1)" stroke="#00B894"/>
+      <text x="700" y="270" text-anchor="middle" fill="#00B894" font-size="10">Rank &amp; Select Top 10</text>
+
+      <!-- Output -->
+      <line x1="700" y1="290" x2="700" y2="330" stroke="#FD79A8" stroke-width="1.5" marker-end="url(#arrow-pink)"/>
+
+      <rect x="30" y="330" width="1040" height="200" rx="6" fill="#162040" stroke="#00B894" stroke-width="2"/>
+      <text x="550" y="320" text-anchor="middle" fill="#00B894" font-size="11" font-family="JetBrains Mono" letter-spacing="1.5">TOP 10 PROJECT OUTPUT — STRUCTURED REPORT</text>
+
+      <!-- Project cards inside output -->
+      <rect x="50" y="355" width="195" height="80" rx="4" fill="#1C2A50" stroke="#E17055"/>
+      <text x="147" y="375" text-anchor="middle" fill="#E17055" font-size="9" font-family="JetBrains Mono">#1 &bull; CRITICAL</text>
+      <text x="147" y="395" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">API Gateway Migration</text>
+      <text x="147" y="415" text-anchor="middle" fill="#9AAEC0" font-size="9">Risk: 8.5 | Cost: $420K | Crit: 9.2</text>
+      <text x="147" y="428" text-anchor="middle" fill="#FDCB6E" font-size="8">Security + compliance deadline</text>
+
+      <rect x="260" y="355" width="195" height="80" rx="4" fill="#1C2A50" stroke="#E17055"/>
+      <text x="357" y="375" text-anchor="middle" fill="#E17055" font-size="9" font-family="JetBrains Mono">#2 &bull; HIGH</text>
+      <text x="357" y="395" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Data Platform v2</text>
+      <text x="357" y="415" text-anchor="middle" fill="#9AAEC0" font-size="9">Risk: 7.8 | Cost: $650K | Crit: 8.9</text>
+      <text x="357" y="428" text-anchor="middle" fill="#FDCB6E" font-size="8">Revenue enabler, 6 deps blocked</text>
+
+      <rect x="470" y="355" width="195" height="80" rx="4" fill="#1C2A50" stroke="#FDCB6E"/>
+      <text x="567" y="375" text-anchor="middle" fill="#FDCB6E" font-size="9" font-family="JetBrains Mono">#3 &bull; HIGH</text>
+      <text x="567" y="395" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Auth System Upgrade</text>
+      <text x="567" y="415" text-anchor="middle" fill="#9AAEC0" font-size="9">Risk: 7.2 | Cost: $280K | Crit: 8.7</text>
+      <text x="567" y="428" text-anchor="middle" fill="#FDCB6E" font-size="8">Zero-day vuln exposure</text>
+
+      <rect x="680" y="355" width="90" height="80" rx="4" fill="#1C2A50" stroke="#6C5CE7"/>
+      <text x="725" y="395" text-anchor="middle" fill="#6C5CE7" font-size="10" font-weight="600">#4 - #7</text>
+      <text x="725" y="415" text-anchor="middle" fill="#9AAEC0" font-size="9">Medium</text>
+
+      <rect x="785" y="355" width="90" height="80" rx="4" fill="#1C2A50" stroke="#00B894"/>
+      <text x="830" y="395" text-anchor="middle" fill="#00B894" font-size="10" font-weight="600">#8 - #10</text>
+      <text x="830" y="415" text-anchor="middle" fill="#9AAEC0" font-size="9">Standard</text>
+
+      <rect x="890" y="355" width="160" height="80" rx="4" fill="rgba(108,92,231,.1)" stroke="#6C5CE7" stroke-dasharray="4,3"/>
+      <text x="970" y="385" text-anchor="middle" fill="#6C5CE7" font-size="10" font-weight="600">Remaining</text>
+      <text x="970" y="405" text-anchor="middle" fill="#9AAEC0" font-size="9">Deprioritised with</text>
+      <text x="970" y="420" text-anchor="middle" fill="#9AAEC0" font-size="9">explanation why</text>
+
+      <!-- Trade-off section -->
+      <rect x="50" y="445" width="1000" height="70" rx="4" fill="rgba(253,203,110,.08)" stroke="#FDCB6E" stroke-dasharray="5,4"/>
+      <text x="80" y="466" fill="#FDCB6E" font-size="10" font-family="JetBrains Mono">TRADE-OFF ANALYSIS PER PROJECT:</text>
+      <text x="80" y="486" fill="#9AAEC0" font-size="10">Picking Up: What you gain (impact), what it costs (resources, timeline), what risks it introduces, dependencies it unblocks</text>
+      <text x="80" y="502" fill="#9AAEC0" font-size="10">Not Picking Up: What you lose (opportunity cost, growing risk), alternatives, conditions under which to reconsider</text>
+    </svg>
+  </div>
+
+  <h3>Multi-Criteria Scoring Methodology</h3>
+  <p>Each project is scored across four weighted dimensions extracted from its documentation. Risk (30% weight) evaluates technical complexity, dependency fragility, team capacity constraints, and historical delivery performance. Cost (20% weight) encompasses budget allocation, resource-hours required, infrastructure costs, and projected ROI. Criticality (35% weight, the highest weight) assesses business impact if the project is delayed, regulatory compliance deadlines, revenue implications, and customer-facing severity. Strategic alignment (15% weight) measures fit with MYOB's current OKRs, executive priorities, and market timing windows.</p>
+
+  <p>The scoring engine first uses RAG retrieval to pull relevant sections from each project's documentation (scope documents, risk registers, budget estimates, status reports). An LLM then extracts structured scores from this context, grounding each score in specific evidence from the documents. The composite score is calculated as: <code>Composite = 0.30×Risk + 0.20×Cost + 0.35×Criticality + 0.15×Strategic</code>.</p>
+
+  <h3>Top 10 Selection and Ranking</h3>
+  <p>Projects are sorted by composite score, and the top 10 are selected for detailed analysis. For each selected project, the LLM generates a structured summary containing the project name and owner, a 3-sentence executive summary, the individual dimension scores with evidence citations, a dependency map (which other projects it blocks or is blocked by), and team capacity assessment. The LLM also identifies potential conflicts between the top 10 (e.g., two projects requiring the same team at the same time) and suggests sequencing adjustments.</p>
+
+  <h3>Trade-off Analysis Framework</h3>
+  <p>For each of the top 10 projects, the engine produces a detailed trade-off analysis explaining both the case for picking up the project and the consequences of deferral.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Pick-Up Analysis</th>
+        <th>Deferral Analysis</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="color:#E17055;font-weight:600">Risk</td>
+        <td>What risks does starting this project mitigate? What new risks does it introduce (technical debt, team burnout, parallel work contention)?</td>
+        <td>How does the risk profile change over time if deferred? Does the risk compound (e.g., security vulnerabilities), or remain stable?</td>
+      </tr>
+      <tr>
+        <td style="color:#FDCB6E;font-weight:600">Cost</td>
+        <td>Total cost of ownership including team allocation, infrastructure, and opportunity cost of the team not working on alternatives. Expected ROI timeline.</td>
+        <td>Does deferral reduce or increase cost? (Some projects become more expensive to deliver later due to accumulated technical debt or vendor price changes.)</td>
+      </tr>
+      <tr>
+        <td style="color:#FD79A8;font-weight:600">Criticality</td>
+        <td>What business outcomes depend on this project? Are there compliance deadlines, contractual obligations, or revenue milestones tied to delivery?</td>
+        <td>What is the business impact of delay? Is there a hard deadline (regulatory) or a soft deadline (market window)? What workarounds exist?</td>
+      </tr>
+      <tr>
+        <td style="color:#00B894;font-weight:600">Dependencies</td>
+        <td>How many downstream projects does this unblock? What is the cascading impact of completing this project on the broader portfolio?</td>
+        <td>Which teams or projects are blocked while this is deferred? Can they proceed with partial workarounds?</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout success">
+    <strong>Example Output — Project #1: API Gateway Migration</strong><br><br>
+    <strong>Why pick up:</strong> The current API gateway has a known CVE with a CVSS score of 9.1, and the vendor's security patch requires the newer version. Compliance audit in Q3 2026 requires remediation evidence. Six downstream services depend on gateway features only available in the new version, currently blocked. Estimated 3-month delivery with 4 engineers.<br><br>
+    <strong>Why not pick up (trade-offs):</strong> Migrating now pulls 4 senior engineers from the Data Platform v2 project for 3 months, delaying that project's revenue-generating features. The security risk can be partially mitigated with a WAF rule (temporary, 60% coverage). If the team is split, both projects risk quality degradation. <strong>Recommendation:</strong> Prioritise due to compliance deadline. Mitigate Data Platform delay by hiring 2 contract engineers for the overlap period.
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== 10. TRADE-OFF ANALYSIS ==================== -->
+<section id="s10">
+  <h2><span class="num">10</span> Trade-off Analysis &amp; Decision Framework</h2>
+  <p class="section-desc">Architectural decisions and their trade-offs across the entire RAG pipeline.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Decision</th>
+        <th>Option Chosen</th>
+        <th>Alternative</th>
+        <th>Trade-off Rationale</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="color:#fff">Search Strategy</td>
+        <td style="color:#00B894">Hybrid (Dense + BM25)</td>
+        <td>Dense-only or BM25-only</td>
+        <td>Higher latency (+50ms) and infrastructure cost (two indices), but 15-20% improvement in retrieval recall, especially for MYOB-specific terminology that vectors alone miss.</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">Embedding Model</td>
+        <td style="color:#00B894">text-embedding-3-large</td>
+        <td>BGE-M3 (self-hosted)</td>
+        <td>API dependency and per-token cost, but consistently higher retrieval quality (3% better recall@10 in benchmarks) and zero infrastructure management. Self-hosted option available for cost reduction at scale.</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">Chunking</td>
+        <td style="color:#00B894">Semantic (512 tok, 64 overlap)</td>
+        <td>Fixed-size (256 or 1024)</td>
+        <td>More complex implementation and slightly higher compute, but respects document structure boundaries and reduces mid-thought splits by 40%, improving answer coherence.</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">Re-ranker</td>
+        <td style="color:#00B894">Cross-encoder (MiniLM-L-12)</td>
+        <td>No re-ranker / LLM re-rank</td>
+        <td>Adds 100-150ms latency per query, but improves precision@5 by 25%. LLM re-ranking would be more accurate but 10x more expensive and 5x slower.</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">Evaluation</td>
+        <td style="color:#00B894">LLM-as-Judge (async)</td>
+        <td>Rule-based or human-only</td>
+        <td>Adds ~$0.02/query in LLM cost, but scales to 100% of queries (vs. human review at 1-5%). Async execution means zero impact on user-facing latency.</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">Vector Database</td>
+        <td style="color:#00B894">Managed (Pinecone/Weaviate Cloud)</td>
+        <td>Self-hosted (Milvus, Qdrant)</td>
+        <td>Higher per-query cost but zero operational burden. For MYOB's document volume (est. 50K-100K chunks), managed tier is cost-effective. Migrate to self-hosted if volume exceeds 1M chunks.</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">LLM Provider</td>
+        <td style="color:#00B894">Claude Sonnet (primary)</td>
+        <td>GPT-4o, Gemini, open-source</td>
+        <td>Best balance of quality, instruction-following (critical for citation compliance), and cost. GPT-4o as fallback provider for resilience. Open-source (Llama 3) evaluated for cost-sensitive batch operations (project scoring).</td>
+      </tr>
+      <tr>
+        <td style="color:#fff">Deployment</td>
+        <td style="color:#00B894">Blue-green with feature flags</td>
+        <td>Canary, rolling update</td>
+        <td>Slightly more infrastructure (two full environments), but enables instant rollback within seconds vs. minutes for canary. Critical for an internal tool where bad answers erode trust quickly.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Cost Estimation</h3>
+  <div class="card-grid">
+    <div class="card">
+      <h4>Embedding Costs</h4>
+      <p>Initial indexing: ~50K chunks × $0.00013/1K tokens ≈ $3.25. Re-indexing (10% daily churn): ~$0.33/day. Annual: ~$120.</p>
+    </div>
+    <div class="card teal">
+      <h4>LLM Generation Costs</h4>
+      <p>Estimated 500 queries/day × ~6K tokens/query × $3/M tokens (Claude Sonnet) ≈ $9/day. Annual: ~$3,285.</p>
+    </div>
+    <div class="card orange">
+      <h4>Evaluation Costs</h4>
+      <p>500 evals/day × ~2K tokens × $0.25/M tokens (Haiku) ≈ $0.25/day. Annual: ~$91.</p>
+    </div>
+    <div class="card pink">
+      <h4>Infrastructure</h4>
+      <p>Managed vector DB: ~$70/month. Elasticsearch: ~$150/month. Compute (API servers): ~$200/month. Annual: ~$5,040.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Total Estimated Annual Cost:</strong> ~$8,500 (excluding engineering time). This represents a significant ROI when compared against the estimated 2,000+ hours/year currently spent by staff searching for HR policies and by technical leadership in ad-hoc project prioritisation meetings. At an average loaded cost of $80/hour, the current cost of the problems being solved is approximately $160,000/year.
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    MYOB AI Engineering &mdash; Self-Evaluating RAG Pipeline Architecture Document &mdash; Version 2.0 &mdash; June 2026<br>
+    Prepared by Senior AI Engineer &mdash; For internal use only &mdash; Classification: Internal
+  </div>
+</footer>
+
+</body>
+</html>
